@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.campus.food.campusfood.entity.User">
+        <id column="id" property="id" />
+        <result column="phone" property="phone" />
+        <result column="email" property="email" />
+        <result column="password_hash" property="passwordHash" />
+        <result column="nickname" property="nickname" />
+        <result column="avatar_url" property="avatarUrl" />
+        <result column="gender" property="gender" />
+        <result column="school" property="school" />
+        <result column="major" property="major" />
+        <result column="bio" property="bio" />
+        <result column="privacy_feed" property="privacyFeed" />
+        <result column="privacy_add_friend" property="privacyAddFriend" />
+        <result column="status" property="status" />
+        <result column="role_id" property="roleId" />
+        <result column="last_login_at" property="lastLoginAt" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="deleted" property="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio, privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio, privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted)
+        VALUES (#{id}, #{phone}, #{email}, #{passwordHash}, #{nickname}, #{avatarUrl}, #{gender}, #{school}, #{major}, #{bio}, #{privacyFeed}, #{privacyAddFriend}, #{status}, #{roleId}, #{lastLoginAt}, #{createdAt}, #{updatedAt}, #{deleted})
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM sys_user
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+<select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM sys_user
+        WHERE phone = #{phone}
+        AND deleted = 0
+    </select>
+    <select id="countByPhone" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM sys_user WHERE phone = #{phone} AND deleted = 0
+    </select>
+    <select id="countByEmail" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM sys_user WHERE email = #{email} AND deleted = 0
+    </select>
+    <select id="selectByEmail" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM sys_user
+        WHERE email = #{email}
+        AND deleted = 0
+    </select>
+
+    <update id="updateById">
+        UPDATE sys_user
+        SET
+            phone = #{phone},
+            email = #{email},
+            password_hash = #{passwordHash},
+            nickname = #{nickname},
+            avatar_url = #{avatarUrl},
+            gender = #{gender},
+            school = #{school},
+            major = #{major},
+            bio = #{bio},
+            privacy_feed = #{privacyFeed},
+            privacy_add_friend = #{privacyAddFriend},
+            status = #{status},
+            role_id = #{roleId},
+            last_login_at = #{lastLoginAt},
+            created_at = #{createdAt},
+            updated_at = #{updatedAt},
+            deleted = #{deleted}
+        WHERE id = #{id}
+    </update>
+
+    <update id="logicalDeleteById">
+        UPDATE sys_user
+        SET deleted = 1
+        WHERE id = #{id}
+    </update>
+
+</mapper>

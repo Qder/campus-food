@@ -32,7 +32,7 @@ public class User {
     /** 头像 URL */
     private String avatarUrl;
 
-    /** {@link UserGender} */
+    /** {@link com.campus.food.campusfood.enums.UserGenderEnum} */
     private Integer gender;
 
     private String school;
@@ -48,8 +48,14 @@ public class User {
     /** 是否允许陌生人加好友：0 否，1 是 */
     private Integer privacyAddFriend;
 
-    /** {@link UserStatus} */
+    /** 状态：0 禁用，1 正常，2 限制 */
     private Integer status;
+
+    /**
+     * 当前角色 ID，对应 {@code sys_role.id}。
+     * 种子：1=USER，2=MERCHANT，3=ADMIN；注册未指定时默认为 USER(1)。
+     */
+    private Integer roleId;
 
     private LocalDateTime lastLoginAt;
 
