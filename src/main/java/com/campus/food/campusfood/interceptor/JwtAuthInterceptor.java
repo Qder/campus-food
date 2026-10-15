@@ -5,6 +5,8 @@ import com.campus.food.campusfood.util.JwtUtil;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -24,10 +26,15 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
      * 解析并校验 Token，成功则写入 {@link UserContext}。
      */
     @Override
-    public boolean preHandle(HttpServletRequest request,
-                             HttpServletResponse response,
-                             Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request,
+                             @NonNull HttpServletResponse response,
+                             @NonNull Object handler) throws Exception {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        // GET /food/{id}/reviews 公开浏览；POST 同路径仍需登录（不在此放行）
+        if (isPublicFoodReviewList(request)) {
             return true;
         }
 
@@ -59,10 +66,27 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
 
     /** 请求完成后清理 {@link UserContext} */
     @Override
-    public void afterCompletion(HttpServletRequest request,
-                                HttpServletResponse response,
-                                Object handler, Exception ex) {
+    public void afterCompletion(@NonNull HttpServletRequest request,
+                                @NonNull HttpServletResponse response,
+                                @NonNull Object handler,
+                                @Nullable Exception ex) {
         UserContext.clear();
+    }
+
+    /** 是否为公开评价列表：GET 且路径形如 /food/数字/reviews */
+    private boolean isPublicFoodReviewList(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return false;
+        }
+        int q = uri.indexOf('?');
+        if (q >= 0) {
+            uri = uri.substring(0, q);
+        }
+        return uri.matches(".*/food/\\d+/reviews/?$");
     }
 
     /** 返回 401 JSON，不进入 Controller */

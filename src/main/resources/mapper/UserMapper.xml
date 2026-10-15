@@ -24,81 +24,47 @@
         <result column="deleted" property="deleted" />
     </resultMap>
 
-    <sql id="Base_Column_List">
-        id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio, privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
-    </sql>
-
+    <!-- 固定列插入：注册写入字段；created_at/updated_at 走表默认值 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sys_user
-        <trim prefix="(" suffix=")" suffixOverrides=",">
-            <if test="id != null">id,</if>
-            <if test="phone != null">phone,</if>
-            <if test="email != null">email,</if>
-            <if test="passwordHash != null">password_hash,</if>
-            <if test="nickname != null">nickname,</if>
-            <if test="avatarUrl != null">avatar_url,</if>
-            <if test="gender != null">gender,</if>
-            <if test="school != null">school,</if>
-            <if test="major != null">major,</if>
-            <if test="bio != null">bio,</if>
-            <if test="privacyFeed != null">privacy_feed,</if>
-            <if test="privacyAddFriend != null">privacy_add_friend,</if>
-            <if test="status != null">status,</if>
-            <if test="roleId != null">role_id,</if>
-            <if test="lastLoginAt != null">last_login_at,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
-            <if test="deleted != null">deleted,</if>
-        </trim>
-        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
-            <if test="id != null">#{id},</if>
-            <if test="phone != null">#{phone},</if>
-            <if test="email != null">#{email},</if>
-            <if test="passwordHash != null">#{passwordHash},</if>
-            <if test="nickname != null">#{nickname},</if>
-            <if test="avatarUrl != null">#{avatarUrl},</if>
-            <if test="gender != null">#{gender},</if>
-            <if test="school != null">#{school},</if>
-            <if test="major != null">#{major},</if>
-            <if test="bio != null">#{bio},</if>
-            <if test="privacyFeed != null">#{privacyFeed},</if>
-            <if test="privacyAddFriend != null">#{privacyAddFriend},</if>
-            <if test="status != null">#{status},</if>
-            <if test="roleId != null">#{roleId},</if>
-            <if test="lastLoginAt != null">#{lastLoginAt},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
-            <if test="deleted != null">#{deleted},</if>
-        </trim>
+        INSERT INTO sys_user (
+            phone, email, password_hash, nickname, gender,
+            privacy_feed, privacy_add_friend, status, role_id, deleted
+        ) VALUES (
+            #{phone}, #{email}, #{passwordHash}, #{nickname}, #{gender},
+            #{privacyFeed}, #{privacyAddFriend}, #{status}, #{roleId}, #{deleted}
+        )
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List" />
+        SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
         FROM sys_user
         WHERE id = #{id}
           AND deleted = 0
     </select>
 
-<select id="selectByPhone" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List" />
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
         FROM sys_user
         WHERE phone = #{phone}
-        AND deleted = 0
+          AND deleted = 0
     </select>
+
     <select id="countByPhone" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM sys_user WHERE phone = #{phone} AND deleted = 0
     </select>
+
     <select id="countByEmail" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM sys_user WHERE email = #{email} AND deleted = 0
     </select>
+
     <select id="selectByEmail" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List" />
+        SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
         FROM sys_user
         WHERE email = #{email}
-        AND deleted = 0
+          AND deleted = 0
     </select>
 
     <update id="updateById">
@@ -122,6 +88,13 @@
             updated_at = #{updatedAt},
             deleted = #{deleted}
         WHERE id = #{id}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE sys_user
+        SET last_login_at = #{lastLoginAt}
+        WHERE id = #{id}
+          AND deleted = 0
     </update>
 
     <update id="logicalDeleteById">

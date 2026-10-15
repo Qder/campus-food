@@ -25,7 +25,7 @@ public class AuthController {
         return authService.register(dto);
     }
 
-    /** 密码登录，返回 JWT */
+    /** 密码登录，返回 LoginVO 里面有token字段 */
     @PostMapping("/login")
     public LoginVO login(@Valid @RequestBody LoginDTO dto) {
         return authService.login(dto);

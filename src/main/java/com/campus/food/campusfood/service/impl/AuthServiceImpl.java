@@ -14,6 +14,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -113,10 +115,14 @@ public class AuthServiceImpl implements AuthService {
         if (user == null || !encoder.matches(password, user.getPasswordHash())) {
             throw new BizException(LOGIN_FAILED_MSG);
         }
+        
         // 如果用户状态异常，则抛出异常
         if (user.getStatus() == null || user.getStatus() != STATUS_NORMAL) {
             throw new BizException("账号状态异常，无法登录");
         }
+
+        user.setLastLoginAt(LocalDateTime.now());
+        sysUserMapper.updateLastLoginAt(user.getId(), user.getLastLoginAt());
 
         // 返回登录成功信息
         LoginVO vo = new LoginVO();

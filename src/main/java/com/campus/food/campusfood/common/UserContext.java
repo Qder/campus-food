@@ -4,7 +4,7 @@ package com.campus.food.campusfood.common;
  * 当前 HTTP 请求对应的登录用户，由 JWT 拦截器写入。
  */
 public final class UserContext {
-
+    //从threadlocal中获取当前登录用户的id和角色id
     private static final ThreadLocal<Long> USER_ID = new ThreadLocal<>();
     private static final ThreadLocal<Integer> ROLE_ID = new ThreadLocal<>();
 
@@ -22,7 +22,11 @@ public final class UserContext {
         return USER_ID.get();
     }
 
-    /** 获取当前角色 ID，未登录或未写入时为 {@code null} */
+    /**
+     * 获取当前角色 ID，未登录或未写入时为 {@code null}。
+     * 供后续按角色鉴权（商家 / 管理端）使用，当前业务尚未调用。
+     */
+    @SuppressWarnings("unused")
     public static Integer getRoleId() {
         return ROLE_ID.get();
     }
