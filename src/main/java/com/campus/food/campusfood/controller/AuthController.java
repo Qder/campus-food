@@ -19,11 +19,13 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    /** 用户注册，无需 Token */
     @PostMapping("/register")
     public RegisterVO register(@Valid @RequestBody RegisterDTO dto) {
         return authService.register(dto);
     }
 
+    /** 密码登录，返回 JWT */
     @PostMapping("/login")
     public LoginVO login(@Valid @RequestBody LoginDTO dto) {
         return authService.login(dto);

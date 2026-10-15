@@ -6,6 +6,7 @@ import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.AuthService;
+import com.campus.food.campusfood.util.JwtUtil;
 import com.campus.food.campusfood.vo.LoginVO;
 import com.campus.food.campusfood.vo.RegisterVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +17,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-
     private static final int ROLE_USER = 1;
     private static final int STATUS_NORMAL = 1;
     private static final int NOT_DELETED = 0;
+    /** 与 DDL 默认一致：性别未知、动态公开、允许加好友 */
+    private static final int GENDER_UNKNOWN = 0;
+    private static final int PRIVACY_YES = 1;
     private static final int PWD_MIN_LEN = 6;
     private static final int PWD_MAX_LEN = 32;
     private static final int NICKNAME_MAX_LEN = 20;
@@ -31,9 +34,12 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private BCryptPasswordEncoder encoder;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    /** 校验、查重、BCrypt 入库，默认 roleId=1 */
     @Override
     public RegisterVO register(RegisterDTO dto) {
-        // 1. 校验
         String phone = trimToNull(dto.getPhone());
         String email = trimToNull(dto.getEmail());
         String password = dto.getPassword();
@@ -53,7 +59,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException("昵称长度不能超过 " + NICKNAME_MAX_LEN + " 位");
         }
 
-        // 2. 查重：同 phone / email 且未删除
         if (phone != null && sysUserMapper.countByPhone(phone) > 0) {
             throw new BizException("该手机号已被注册");
         }
@@ -61,19 +66,19 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException("该邮箱已被注册");
         }
 
-        // 3. 明文密码 -> BCrypt 哈希
         String passwordHash = encoder.encode(password);
 
-        // 4. 组装实体：只设必须字段
         User user = new User();
         user.setPhone(phone);
         user.setEmail(email);
         user.setPasswordHash(passwordHash);
         user.setNickname(nickname);
+        user.setGender(GENDER_UNKNOWN);
+        user.setPrivacyFeed(PRIVACY_YES);
+        user.setPrivacyAddFriend(PRIVACY_YES);
         user.setRoleId(ROLE_USER);
         user.setStatus(STATUS_NORMAL);
         user.setDeleted(NOT_DELETED);
-        // privacy / bio / school 不设置，保持 NULL
 
         // 5. 插入；唯一索引冲突转友好错误
         try {
@@ -90,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
         return vo;
     }
 
+    /** 校验密码与账号状态，签发 JWT */
     @Override
     public LoginVO login(LoginDTO loginDto) {
         String account = trimToNull(loginDto.getUsername());
@@ -117,10 +123,11 @@ public class AuthServiceImpl implements AuthService {
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
         vo.setRoleId(user.getRoleId());
+        vo.setToken(jwtUtil.generateToken(user.getId(), user.getRoleId()));
         return vo;
     }
 
-    /** 账号为邮箱（含 @）或手机号 */
+    /** 含 {@code @} 按邮箱查，否则按手机号查 */
     private User findUserByAccount(String account) {
         if (account.contains("@")) {
             return sysUserMapper.selectByEmail(account);
@@ -128,6 +135,7 @@ public class AuthServiceImpl implements AuthService {
         return sysUserMapper.selectByPhone(account);
     }
 
+    /** 去首尾空白，空串视为 null */
     private String trimToNull(String s) {
         if (s == null) return null;
         String t = s.trim();

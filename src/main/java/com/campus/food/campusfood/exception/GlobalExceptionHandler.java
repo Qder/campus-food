@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500).body(body(500, "服务器内部错误"));
     }
 
+    /** 统一错误响应体：{@code { code, message }} */
     private Map<String, Object> body(int code, String message) {
         Map<String, Object> m = new HashMap<>();
         m.put("code", code);
