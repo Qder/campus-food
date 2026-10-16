@@ -8,7 +8,7 @@ import com.campus.food.campusfood.mapper.FoodCategoryMapper;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.FoodService;
-import com.campus.food.campusfood.service.support.FoodRecommendScorer;
+import com.campus.food.campusfood.service.util.FoodRecommendScorer;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.vo.FoodCategoryVO;
 import com.campus.food.campusfood.vo.FoodItemVO;
