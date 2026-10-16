@@ -27,6 +27,12 @@ public class UpdateProfileDTO {
     @Size(max = 128, message = "专业名称过长")
     private String major;
 
+    @Size(max = 256, message = "口味标签过长")
+    private String tasteTags;
+
+    @Size(max = 256, message = "不喜欢的食材过长")
+    private String dislikeIngredients;
+
     @Size(max = 512, message = "个人简介过长")
     private String bio;
 

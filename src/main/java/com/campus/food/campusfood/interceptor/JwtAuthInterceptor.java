@@ -33,8 +33,8 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // GET /food/{id}/reviews 公开浏览；POST 同路径仍需登录（不在此放行）
-        if (isPublicFoodReviewList(request)) {
+        // 美食浏览类 GET 公开；/food/recommend、POST 评价等仍须 JWT
+        if (isPublicFoodBrowse(request)) {
             return true;
         }
 
@@ -73,20 +73,29 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         UserContext.clear();
     }
 
-    /** 是否为公开评价列表：GET 且路径形如 /food/数字/reviews */
-    private boolean isPublicFoodReviewList(HttpServletRequest request) {
+    /** 公开美食浏览：分类/列表/搜索、详情、评价列表（均为 GET） */
+    private boolean isPublicFoodBrowse(HttpServletRequest request) {
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return false;
         }
-        String uri = request.getRequestURI();
+        String uri = requestPathWithoutQuery(request);
         if (uri == null) {
             return false;
         }
-        int q = uri.indexOf('?');
-        if (q >= 0) {
-            uri = uri.substring(0, q);
+        return uri.matches(".*/food/categories/?$")
+                || uri.matches(".*/food/list/?$")
+                || uri.matches(".*/food/search/?$")
+                || uri.matches(".*/food/\\d+/?$")
+                || uri.matches(".*/food/\\d+/reviews/?$");
+    }
+
+    private static String requestPathWithoutQuery(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return null;
         }
-        return uri.matches(".*/food/\\d+/reviews/?$");
+        int q = uri.indexOf('?');
+        return q >= 0 ? uri.substring(0, q) : uri;
     }
 
     /** 返回 401 JSON，不进入 Controller */

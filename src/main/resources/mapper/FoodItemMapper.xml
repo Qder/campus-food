@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.FoodItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.campus.food.campusfood.entity.FoodItem">
+        <id column="id" property="id" />
+        <result column="merchant_id" property="merchantId" />
+        <result column="category_id" property="categoryId" />
+        <result column="name" property="name" />
+        <result column="food_type" property="foodType" />
+        <result column="price" property="price" />
+        <result column="stock" property="stock" />
+        <result column="description" property="description" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="avg_score" property="avgScore" />
+        <result column="review_count" property="reviewCount" />
+        <result column="sales_count" property="salesCount" />
+        <result column="recommend_tag" property="recommendTag" />
+        <result column="status" property="status" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="deleted" property="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, merchant_id, category_id, name, food_type, price, stock, description, cover_url, avg_score, review_count, sales_count, recommend_tag, status, created_at, updated_at, deleted
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO food_item (id, merchant_id, category_id, name, food_type, price, stock, description, cover_url, avg_score, review_count, sales_count, recommend_tag, status, created_at, updated_at, deleted)
+        VALUES (#{id}, #{merchantId}, #{categoryId}, #{name}, #{foodType}, #{price}, #{stock}, #{description}, #{coverUrl}, #{avgScore}, #{reviewCount}, #{salesCount}, #{recommendTag}, #{status}, #{createdAt}, #{updatedAt}, #{deleted})
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM food_item
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+    <resultMap id="FoodItemVOMap" type="com.campus.food.campusfood.vo.FoodItemVO">
+        <id column="id" property="id" />
+        <result column="merchant_id" property="merchantId" />
+        <result column="shop_name" property="shopName" />
+        <result column="campus_area" property="campusArea" />
+        <result column="category_id" property="categoryId" />
+        <result column="name" property="name" />
+        <result column="food_type" property="foodType" />
+        <result column="price" property="price" />
+        <result column="stock" property="stock" />
+        <result column="description" property="description" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="avg_score" property="avgScore" />
+        <result column="review_count" property="reviewCount" />
+        <result column="sales_count" property="salesCount" />
+        <result column="recommend_tag" property="recommendTag" />
+        <result column="status" property="status" />
+        <result column="taste_tags" property="tasteTags" />
+        <result column="ingredients" property="ingredients" />
+    </resultMap>
+
+    <sql id="On_Shelf_From">
+        FROM food_item f
+        INNER JOIN merchant m ON m.id = f.merchant_id AND m.deleted = 0
+        WHERE f.deleted = 0
+          AND f.status = 1
+          AND m.audit_status = 1
+          AND m.status = 1
+        <if test="categoryId != null">
+            AND f.category_id = #{categoryId}
+        </if>
+        <if test="campusArea != null and campusArea != ''">
+            AND m.campus_area = #{campusArea}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND f.name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+    </sql>
+
+    <select id="countOnShelf" resultType="int">
+        SELECT COUNT(*)
+        <include refid="On_Shelf_From" />
+    </select>
+
+    <select id="selectOnShelf" resultMap="FoodItemVOMap">
+        SELECT
+            f.id, f.merchant_id, m.shop_name, m.campus_area, f.category_id, f.name,
+            f.food_type, f.price, f.stock, f.description, f.cover_url, f.avg_score,
+            f.review_count, f.sales_count, f.recommend_tag, f.status
+        <include refid="On_Shelf_From" />
+        ORDER BY f.avg_score DESC, f.sales_count DESC, f.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectOnShelfForRecommend" resultMap="FoodItemVOMap">
+        SELECT
+            f.id, f.merchant_id, m.shop_name, m.campus_area, f.category_id, f.name,
+            f.food_type, f.price, f.stock, f.description, f.cover_url, f.avg_score,
+            f.review_count, f.sales_count, f.recommend_tag, f.status,
+            f.taste_tags, f.ingredients
+        FROM food_item f
+        INNER JOIN merchant m ON m.id = f.merchant_id AND m.deleted = 0
+        WHERE f.deleted = 0
+          AND f.status = 1
+          AND m.audit_status = 1
+          AND m.status = 1
+        ORDER BY f.sales_count DESC, f.avg_score DESC, f.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectOnShelfById" resultMap="FoodItemVOMap">
+        SELECT
+            f.id, f.merchant_id, m.shop_name, m.campus_area, f.category_id, f.name,
+            f.food_type, f.price, f.stock, f.description, f.cover_url, f.avg_score,
+            f.review_count, f.sales_count, f.recommend_tag, f.status
+        FROM food_item f
+        INNER JOIN merchant m ON m.id = f.merchant_id AND m.deleted = 0
+        WHERE f.id = #{id}
+          AND f.deleted = 0
+          AND f.status = 1
+          AND m.audit_status = 1
+          AND m.status = 1
+    </select>
+
+    <update id="updateScoreAfterReview">
+        UPDATE food_item
+        SET avg_score = ROUND((avg_score * review_count + #{score}) / (review_count + 1), 2),
+            review_count = review_count + 1
+        WHERE id = #{id}
+          AND deleted = 0
+    </update>
+
+    <update id="updateById">
+        UPDATE food_item
+        <set>
+            <if test="merchantId != null">merchant_id = #{merchantId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="foodType != null">food_type = #{foodType},</if>
+            <if test="tasteTags != null">taste_tags = #{tasteTags},</if>
+            <if test="ingredients != null">ingredients = #{ingredients},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="coverUrl != null">cover_url = #{coverUrl},</if>
+            <if test="avgScore != null">avg_score = #{avgScore},</if>
+            <if test="reviewCount != null">review_count = #{reviewCount},</if>
+            <if test="salesCount != null">sales_count = #{salesCount},</if>
+            <if test="recommendTag != null">recommend_tag = #{recommendTag},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="logicalDeleteById">
+        UPDATE food_item
+        SET deleted = 1
+        WHERE id = #{id}
+    </update>
+
+</mapper>

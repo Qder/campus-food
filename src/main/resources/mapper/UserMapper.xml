@@ -22,6 +22,8 @@
         <result column="created_at" property="createdAt" />
         <result column="updated_at" property="updatedAt" />
         <result column="deleted" property="deleted" />
+        <result column="taste_tags" property="tasteTags" />
+        <result column="dislike_ingredients" property="dislikeIngredients" />
     </resultMap>
 
     <!-- 固定列插入：注册写入字段；created_at/updated_at 走表默认值 -->
@@ -37,7 +39,7 @@
 
     <select id="selectById" resultMap="BaseResultMap">
         SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
-               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted, taste_tags, dislike_ingredients
         FROM sys_user
         WHERE id = #{id}
           AND deleted = 0
@@ -45,7 +47,7 @@
 
     <select id="selectByPhone" resultMap="BaseResultMap">
         SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
-               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted, taste_tags, dislike_ingredients
         FROM sys_user
         WHERE phone = #{phone}
           AND deleted = 0
@@ -61,32 +63,36 @@
 
     <select id="selectByEmail" resultMap="BaseResultMap">
         SELECT id, phone, email, password_hash, nickname, avatar_url, gender, school, major, bio,
-               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted
+               privacy_feed, privacy_add_friend, status, role_id, last_login_at, created_at, updated_at, deleted, taste_tags, dislike_ingredients  
         FROM sys_user
         WHERE email = #{email}
           AND deleted = 0
     </select>
 
+    <!-- 按主键动态更新：仅非 null 字段写入 -->
     <update id="updateById">
         UPDATE sys_user
-        SET
-            phone = #{phone},
-            email = #{email},
-            password_hash = #{passwordHash},
-            nickname = #{nickname},
-            avatar_url = #{avatarUrl},
-            gender = #{gender},
-            school = #{school},
-            major = #{major},
-            bio = #{bio},
-            privacy_feed = #{privacyFeed},
-            privacy_add_friend = #{privacyAddFriend},
-            status = #{status},
-            role_id = #{roleId},
-            last_login_at = #{lastLoginAt},
-            created_at = #{createdAt},
-            updated_at = #{updatedAt},
-            deleted = #{deleted}
+        <set>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="passwordHash != null">password_hash = #{passwordHash},</if>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="school != null">school = #{school},</if>
+            <if test="major != null">major = #{major},</if>
+            <if test="bio != null">bio = #{bio},</if>
+            <if test="privacyFeed != null">privacy_feed = #{privacyFeed},</if>
+            <if test="privacyAddFriend != null">privacy_add_friend = #{privacyAddFriend},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="roleId != null">role_id = #{roleId},</if>
+            <if test="lastLoginAt != null">last_login_at = #{lastLoginAt},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="tasteTags != null">taste_tags = #{tasteTags},</if>
+            <if test="dislikeIngredients != null">dislike_ingredients = #{dislikeIngredients},</if>
+        </set>
         WHERE id = #{id}
     </update>
 

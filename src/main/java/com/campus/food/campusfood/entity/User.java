@@ -35,6 +35,10 @@ public class User {
     /** {@link com.campus.food.campusfood.enums.UserGenderEnum} */
     private Integer gender;
 
+    private String tasteTags;
+
+    private String dislikeIngredients;
+
     private String school;
 
     private String major;

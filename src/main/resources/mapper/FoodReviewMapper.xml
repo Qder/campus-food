@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.FoodReviewMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO food_review (
+            user_id, food_id, merchant_id, order_id, score, content,
+            like_count, audit_status, status
+        ) VALUES (
+            #{userId}, #{foodId}, #{merchantId}, #{orderId}, #{score}, #{content},
+            #{likeCount}, #{auditStatus}, #{status}
+        )
+    </insert>
+
+    <select id="countVisibleByFoodId" resultType="int">
+        SELECT COUNT(*)
+        FROM food_review
+        WHERE food_id = #{foodId}
+          AND audit_status = 1
+          AND status = 1
+    </select>
+
+    <select id="selectVisibleByFoodId" resultType="com.campus.food.campusfood.vo.FoodReviewVO">
+        SELECT
+            r.id,
+            r.user_id AS userId,
+            u.nickname,
+            r.food_id AS foodId,
+            r.score,
+            r.content,
+            r.like_count AS likeCount,
+            r.created_at AS createdAt
+        FROM food_review r
+        LEFT JOIN sys_user u ON u.id = r.user_id AND u.deleted = 0
+        WHERE r.food_id = #{foodId}
+          AND r.audit_status = 1
+          AND r.status = 1
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+</mapper>

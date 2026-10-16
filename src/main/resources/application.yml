@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: campus-food
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_food?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.campus.food.campusfood.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+# JWT 配置
+jwt:
+  # 至少 32 字节，HS256 要求 256 位
+  secret: "change-me-please-change-me-please-1234567890"
+  # access token 有效期（分钟），课设先只做 access
+  expire-minutes: 120
+  # 请求头名与前缀
+  header: "Authorization"
+  prefix: "Bearer "
