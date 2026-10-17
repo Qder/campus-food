@@ -1,14 +1,11 @@
 package com.campus.food.campusfood.service.impl;
 
-import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.entity.FoodCategory;
 import com.campus.food.campusfood.entity.FoodItem;
-import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.FoodCategoryMapper;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
-import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.FoodService;
 import com.campus.food.campusfood.service.util.FoodRecommendScorer;
@@ -21,9 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,9 +51,6 @@ public class FoodServiceImpl implements FoodService {
 
     @Autowired
     private FoodItemMapper foodItemMapper;
-
-    @Autowired
-    private MerchantMapper merchantMapper;
 
     @Autowired
     private UserMapper userMapper;
@@ -105,6 +99,7 @@ public class FoodServiceImpl implements FoodService {
                                         Integer page, Integer size) {
         int p = page == null || page < 1 ? DEFAULT_PAGE : page;
         int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+        //将纯空格，空串转换为null，方便mapper层判断
         String area = trimToNull(campusArea);
         String key = trimToNull(keyword);
 
@@ -113,6 +108,7 @@ public class FoodServiceImpl implements FoodService {
             throw new BizException("搜索关键词不能为空");
         }
 
+        //只要值不是null，就会进行关键词查询
         int total = foodItemMapper.countOnShelf(categoryId, area, key);
         List<FoodItemVO> list = total == 0
                 ? List.of()
@@ -144,6 +140,7 @@ public class FoodServiceImpl implements FoodService {
     public List<FoodRecommendVO> recommend(Long userId, Integer limit) {
         int topN = limit == null || limit < 1 ? DEFAULT_RECOMMEND_LIMIT : Math.min(limit, MAX_SIZE);
 
+        // 从数据库中获取候选（上架的）美食列表
         List<FoodItemVO> candidates = foodItemMapper.selectOnShelfForRecommend(RECOMMEND_CANDIDATE_CAP);
         if (candidates.isEmpty()) {
             return List.of();
@@ -199,11 +196,6 @@ public class FoodServiceImpl implements FoodService {
             return scored;
         }
         return new ArrayList<>(scored.subList(0, topN));
-    }
-
-    @Override
-    public List<Merchant> selectByCondition(MerchantQueryDTO merchantQueryDTO) {
-        return merchantMapper.selectByCondition(merchantQueryDTO);
     }
 
     /**

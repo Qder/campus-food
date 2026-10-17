@@ -1,7 +1,5 @@
 package com.campus.food.campusfood.service;
 
-import com.campus.food.campusfood.dto.MerchantQueryDTO;
-import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.vo.FoodCategoryVO;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodRecommendVO;
@@ -56,9 +54,4 @@ public interface FoodService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录、用户不存在或未设置口味时
      */
     List<FoodRecommendVO> recommend(Long userId, Integer limit);
-
-    /**
-     * 根据条件查询商家列表。
-     */
-    List<Merchant> selectByCondition(MerchantQueryDTO merchantQueryDTO);
 }
