@@ -1,11 +1,14 @@
 package com.campus.food.campusfood.service.impl;
 
+import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.entity.FoodCategory;
 import com.campus.food.campusfood.entity.FoodItem;
+import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.FoodCategoryMapper;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
+import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.FoodService;
 import com.campus.food.campusfood.service.util.FoodRecommendScorer;
@@ -51,6 +54,9 @@ public class FoodServiceImpl implements FoodService {
 
     @Autowired
     private FoodItemMapper foodItemMapper;
+
+    @Autowired
+    private MerchantMapper merchantMapper;
 
     @Autowired
     private UserMapper userMapper;
@@ -193,6 +199,11 @@ public class FoodServiceImpl implements FoodService {
             return scored;
         }
         return new ArrayList<>(scored.subList(0, topN));
+    }
+
+    @Override
+    public List<Merchant> selectByCondition(MerchantQueryDTO merchantQueryDTO) {
+        return merchantMapper.selectByCondition(merchantQueryDTO);
     }
 
     /**

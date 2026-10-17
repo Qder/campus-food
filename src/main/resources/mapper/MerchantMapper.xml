@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.MerchantMapper">
+
+    <sql id="Base_Column_List">
+        id, owner_user_id, shop_name, campus_area, address, contact_phone, logo_url, description,
+        license_img_url, audit_status, audit_remark, audited_at, audited_by, status, settled_at,
+        created_at, updated_at, deleted
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.Merchant" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO merchant (
+            owner_user_id, shop_name, campus_area, address, contact_phone, logo_url, description,
+            license_img_url, audit_status, audit_remark, audited_at, audited_by, status, settled_at, deleted
+        ) VALUES (
+            #{ownerUserId}, #{shopName}, #{campusArea}, #{address}, #{contactPhone}, #{logoUrl}, #{description},
+            #{licenseImgUrl}, #{auditStatus}, #{auditRemark}, #{auditedAt}, #{auditedBy}, #{status}, #{settledAt}, #{deleted}
+        )
+    </insert>
+
+    <update id="deleteById" parameterType="java.lang.Long">
+        UPDATE merchant
+        SET deleted = 1
+        WHERE id = #{id}
+          AND deleted = 0
+    </update>
+
+    <select id="selectById" parameterType="long" resultType="com.campus.food.campusfood.entity.Merchant">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM merchant
+        WHERE id = #{id}
+          AND deleted = 0
+    </select>
+
+    <select id="selectAll" resultType="com.campus.food.campusfood.entity.Merchant">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM merchant
+        WHERE deleted = 0
+    </select>
+
+    <select id="selectByCondition" resultType="com.campus.food.campusfood.entity.Merchant"
+            parameterType="com.campus.food.campusfood.dto.MerchantQueryDTO">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM merchant
+        <where>
+            deleted = 0
+            <if test="shopName != null and shopName != ''">
+                AND shop_name LIKE CONCAT('%', #{shopName}, '%')
+            </if>
+            <if test="shopAddress != null and shopAddress != ''">
+                AND address LIKE CONCAT('%', #{shopAddress}, '%')
+            </if>
+            <if test="auditStatus != null">
+                AND audit_status = #{auditStatus}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        <if test="pageNum != null and pageSize != null">
+            <bind name="offset" value="(pageNum - 1) * pageSize"/>
+            LIMIT #{offset}, #{pageSize}
+        </if>
+    </select>
+    <select id="selectByOwnerUserId" resultType="com.campus.food.campusfood.entity.Merchant">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM merchant
+        WHERE owner_user_id = #{ownerUserId}
+          AND deleted = 0
+    </select>
+
+    <update id="update" parameterType="com.campus.food.campusfood.entity.Merchant">
+        UPDATE merchant
+        <set>
+            <if test="ownerUserId != null">owner_user_id = #{ownerUserId},</if>
+            <if test="shopName != null">shop_name = #{shopName},</if>
+            <if test="campusArea != null">campus_area = #{campusArea},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="contactPhone != null">contact_phone = #{contactPhone},</if>
+            <if test="logoUrl != null">logo_url = #{logoUrl},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="licenseImgUrl != null">license_img_url = #{licenseImgUrl},</if>
+            <if test="auditStatus != null">audit_status = #{auditStatus},</if>
+            <if test="auditRemark != null">audit_remark = #{auditRemark},</if>
+            <if test="auditedAt != null">audited_at = #{auditedAt},</if>
+            <if test="auditedBy != null">audited_by = #{auditedBy},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="settledAt != null">settled_at = #{settledAt},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+        </set>
+        WHERE id = #{id}
+          AND deleted = 0
+    </update>
+
+</mapper>
