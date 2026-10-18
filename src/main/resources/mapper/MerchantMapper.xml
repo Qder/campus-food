@@ -38,7 +38,7 @@
         SELECT
         <include refid="Base_Column_List"/>
         FROM merchant
-        WHERE deleted = 0
+        WHERE deleted = 0 and audit_status = 1 and status = 1
     </select>
 
     <select id="selectByCondition" resultType="com.campus.food.campusfood.entity.Merchant"
