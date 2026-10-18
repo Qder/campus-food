@@ -109,4 +109,17 @@ public interface FoodItemMapper {
      * @return 影响行数
      */
     int logicalDeleteById(@Param("id") Long id);
+
+
+    /**
+     * 按商户ID查询美食。
+     *
+     * @param merchantId 商户ID
+     * @param offset     起始偏移量
+     * @param size       每页条数
+     * @return 美食列表；无数据返回空列表
+     */
+    List<FoodItem> selectByMerchantId(@Param("merchantId") Long merchantId,
+                                      @Param("offset") int offset,
+                                      @Param("size") int size);
 }

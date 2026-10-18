@@ -28,8 +28,8 @@
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO food_item (id, merchant_id, category_id, name, food_type, price, stock, description, cover_url, avg_score, review_count, sales_count, recommend_tag, status, created_at, updated_at, deleted)
-        VALUES (#{id}, #{merchantId}, #{categoryId}, #{name}, #{foodType}, #{price}, #{stock}, #{description}, #{coverUrl}, #{avgScore}, #{reviewCount}, #{salesCount}, #{recommendTag}, #{status}, #{createdAt}, #{updatedAt}, #{deleted})
+        INSERT INTO food_item ( merchant_id, category_id, name, food_type, price, stock, description, cover_url, avg_score, review_count, sales_count, recommend_tag, status, created_at, updated_at, deleted)
+        VALUES (#{merchantId}, #{categoryId}, #{name}, #{foodType}, #{price}, #{stock}, #{description}, #{coverUrl}, #{avgScore}, #{reviewCount}, #{salesCount}, #{recommendTag}, #{status}, #{createdAt}, #{updatedAt}, #{deleted})
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
@@ -122,6 +122,13 @@
           AND f.status = 1
           AND m.audit_status = 1
           AND m.status = 1
+    </select>
+    <select id="selectByMerchantId" resultType="com.campus.food.campusfood.entity.FoodItem">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM food_item
+        WHERE merchant_id = #{merchantId}
+          AND deleted = 0
     </select>
 
     <update id="updateScoreAfterReview">
