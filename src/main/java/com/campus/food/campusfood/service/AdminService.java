@@ -2,6 +2,7 @@ package com.campus.food.campusfood.service;
 
 import java.util.List;
 
+import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.entity.Merchant;
 
@@ -10,9 +11,9 @@ public interface AdminService {
 
     List<Merchant> getPendingMerchants();
 
-    Merchant createMerchant(Merchant merchant);
+    Merchant createMerchant(MerchantCreateDTO merchantCreateDTO);
 
-    Merchant updateMerchant(Long id, Merchant merchant);
+    Merchant approveMerchant(Long id, String auditRemark);
 
     Merchant rejectMerchant(Long id, MerchantRejectDTO merchantRejectDTO);
 }

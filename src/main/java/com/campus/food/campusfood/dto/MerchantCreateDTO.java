@@ -1,8 +1,12 @@
 package com.campus.food.campusfood.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
 
+
+@Data 
 public class MerchantCreateDTO {
 
     /**
@@ -13,7 +17,7 @@ public class MerchantCreateDTO {
     /**
      * 店主用户ID
      */
-    @Size(max = 20, message = "店主用户ID长度不能超过20个字符")
+    @NotNull(message = "店主用户ID不能为空")
     private Long ownerUserId;
 
     /**

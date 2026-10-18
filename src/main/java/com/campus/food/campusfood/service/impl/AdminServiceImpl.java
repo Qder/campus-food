@@ -1,6 +1,7 @@
 package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.common.UserContext;
+import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.entity.Merchant;
@@ -40,33 +41,25 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public Merchant createMerchant(Merchant merchant) {
-        if (merchant == null) {
+    public Merchant createMerchant(MerchantCreateDTO merchantCreateDTO) {
+        if (merchantCreateDTO == null) {
             throw new BizException("店铺信息不能为空");
         }
-        if (merchant.getOwnerUserId() == null) {
-            throw new BizException("店主用户 ID 不能为空");
-        }
-        if (!StringUtils.hasText(merchant.getShopName())) {
-            throw new BizException("店铺名称不能为空");
-        }
-        User owner = userMapper.selectById(merchant.getOwnerUserId());
+        User owner = userMapper.selectById(merchantCreateDTO.getOwnerUserId());
         if (owner == null) {
             throw new BizException("店主用户不存在");
         }
 
         LocalDateTime now = LocalDateTime.now();
         Long adminId = requireAdminUserId();
+
+        Merchant merchant = toMerchant(merchantCreateDTO);
         merchant.setAuditStatus(MerchantAuditStatus.APPROVED.getCode());
         merchant.setAuditedAt(now);
         merchant.setAuditedBy(adminId);
         merchant.setSettledAt(now);
-        if (merchant.getStatus() == null) {
-            merchant.setStatus(STATUS_OPEN);
-        }
-        if (merchant.getDeleted() == null) {
-            merchant.setDeleted(NOT_DELETED);
-        }
+        merchant.setStatus(STATUS_OPEN);
+        merchant.setDeleted(NOT_DELETED);
         merchant.setCreatedAt(now);
         merchant.setUpdatedAt(now);
 
@@ -79,7 +72,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public Merchant updateMerchant(Long id, Merchant merchant) {
+    public Merchant approveMerchant(Long id, String auditRemark) {
         Merchant existing = requirePendingMerchant(id);
         LocalDateTime now = LocalDateTime.now();
         Long adminId = requireAdminUserId();
@@ -91,8 +84,8 @@ public class AdminServiceImpl implements AdminService {
         patch.setAuditedBy(adminId);
         patch.setSettledAt(now);
         patch.setStatus(STATUS_OPEN);
-        if (merchant != null && StringUtils.hasText(merchant.getAuditRemark())) {
-            patch.setAuditRemark(merchant.getAuditRemark().trim());
+        if (StringUtils.hasText(auditRemark)) {
+            patch.setAuditRemark(auditRemark.trim());
         }
 
         int rows = merchantMapper.update(patch);
@@ -147,6 +140,19 @@ public class AdminServiceImpl implements AdminService {
             throw new BizException("未登录");
         }
         return userId;
+    }
+
+    private static Merchant toMerchant(MerchantCreateDTO dto) {
+        Merchant merchant = new Merchant();
+        merchant.setOwnerUserId(dto.getOwnerUserId());
+        merchant.setShopName(dto.getShopName());
+        merchant.setCampusArea(dto.getCampusArea());
+        merchant.setAddress(dto.getAddress());
+        merchant.setContactPhone(dto.getContactPhone());
+        merchant.setLogoUrl(dto.getLogoUrl());
+        merchant.setDescription(dto.getDescription());
+        merchant.setLicenseImgUrl(dto.getLicenseImgUrl());
+        return merchant;
     }
 
     private void grantMerchantRole(Long ownerUserId) {
