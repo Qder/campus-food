@@ -1,9 +1,11 @@
 package com.campus.food.campusfood.enums;
 
 /**
- * 由列 {@code merchant.audit_status} 的 COMMENT 解析生成。
- * 禁止手工臆造常量；解析失败则不会生成此文件。
- * of() 对未知码统一返回 null。
+ * 店铺审核状态，对应列 {@code merchant.audit_status}。
+ * 未知码由 {@link #of(Integer)} 返回 null，避免把脏数据当成合法状态。
+ *
+ * @author yang
+ * @since 2026-10-16
  */
 public enum MerchantAuditStatus {
 
@@ -16,16 +18,28 @@ public enum MerchantAuditStatus {
     /** 取消资格 */
     DISQUALIFIED(3);
 
+    /** 落库的审核码 */
     private final int code;
 
     MerchantAuditStatus(int code) {
         this.code = code;
     }
 
+    /**
+     * 取审核码。
+     *
+     * @return 落库用的审核码
+     */
     public int getCode() {
         return code;
     }
 
+    /**
+     * 按审核码反查枚举。
+     *
+     * @param code 审核码，可为 null
+     * @return 匹配的枚举；null 或未知码返回 null
+     */
     public static MerchantAuditStatus of(Integer code) {
         if (code == null) {
             return null;

@@ -5,12 +5,17 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-
-@Data 
+/**
+ * 管理员代建店铺的请求体，对应 {@code POST /admin/merchants}。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
+@Data
 public class MerchantCreateDTO {
 
     /**
-     * 商家/店铺ID
+     * 店铺 ID。代建时不使用，由数据库生成
      */
     private Long id;
 

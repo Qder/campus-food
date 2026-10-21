@@ -99,7 +99,7 @@ public class FoodServiceImpl implements FoodService {
                                         Integer page, Integer size) {
         int p = page == null || page < 1 ? DEFAULT_PAGE : page;
         int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-        //将纯空格，空串转换为null，方便mapper层判断
+        // 空白当成未传。Mapper 只在非 null 时加区域或关键词条件
         String area = trimToNull(campusArea);
         String key = trimToNull(keyword);
 
@@ -108,7 +108,6 @@ public class FoodServiceImpl implements FoodService {
             throw new BizException("搜索关键词不能为空");
         }
 
-        //只要值不是null，就会进行关键词查询
         int total = foodItemMapper.countOnShelf(categoryId, area, key);
         List<FoodItemVO> list = total == 0
                 ? List.of()
@@ -140,7 +139,6 @@ public class FoodServiceImpl implements FoodService {
     public List<FoodRecommendVO> recommend(Long userId, Integer limit) {
         int topN = limit == null || limit < 1 ? DEFAULT_RECOMMEND_LIMIT : Math.min(limit, MAX_SIZE);
 
-        // 从数据库中获取候选（上架的）美食列表
         List<FoodItemVO> candidates = foodItemMapper.selectOnShelfForRecommend(RECOMMEND_CANDIDATE_CAP);
         if (candidates.isEmpty()) {
             return List.of();

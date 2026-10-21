@@ -16,18 +16,32 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+/**
+ * 注册与登录实现。密码只存 BCrypt，登录失败对外使用同一文案。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    /** 普通用户角色，对应 {@code sys_role} 种子 USER */
     private static final int ROLE_USER = 1;
+    /** 账号状态：正常，禁用或受限不能登录 */
     private static final int STATUS_NORMAL = 1;
+    /** 未逻辑删除 */
     private static final int NOT_DELETED = 0;
-    /** 与 DDL 默认一致：性别未知、动态公开、允许加好友 */
+    /** 性别未知，与表默认值一致 */
     private static final int GENDER_UNKNOWN = 0;
+    /** 隐私开关打开：动态公开、允许加好友 */
     private static final int PRIVACY_YES = 1;
+    /** 密码最短长度 */
     private static final int PWD_MIN_LEN = 6;
+    /** 密码最长长度 */
     private static final int PWD_MAX_LEN = 32;
+    /** 昵称最大长度 */
     private static final int NICKNAME_MAX_LEN = 20;
+    /** 登录失败的统一文案，避免区分账号不存在和密码错误 */
     private static final String LOGIN_FAILED_MSG = "账号或密码错误";
 
     @Autowired
@@ -39,7 +53,11 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    /** 校验、查重、BCrypt 入库，默认 roleId=1 */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>密码只存 BCrypt。唯一索引冲突转成业务错误，避免并发注册把数据库异常抛给调用方。
+     */
     @Override
     public RegisterVO register(RegisterDTO dto) {
         String phone = trimToNull(dto.getPhone());
@@ -82,14 +100,12 @@ public class AuthServiceImpl implements AuthService {
         user.setStatus(STATUS_NORMAL);
         user.setDeleted(NOT_DELETED);
 
-        // 5. 插入；唯一索引冲突转友好错误
         try {
             sysUserMapper.insert(user);
         } catch (DuplicateKeyException e) {
             throw new BizException("手机号或邮箱已被注册");
         }
 
-        // 6. 返回安全字段
         RegisterVO vo = new RegisterVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
@@ -97,26 +113,24 @@ public class AuthServiceImpl implements AuthService {
         return vo;
     }
 
-    /** 校验密码与账号状态，签发 JWT */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>账号不存在和密码错误返回同一文案。非正常状态单独提示，避免禁用账号反复试密码。
+     */
     @Override
     public LoginVO login(LoginDTO loginDto) {
         String account = trimToNull(loginDto.getUsername());
         String password = loginDto.getPassword();
 
-        // 如果账号或密码为空，则抛出异常
         if (account == null || password == null || password.isEmpty()) {
             throw new BizException(LOGIN_FAILED_MSG);
         }
 
-        // 根据账号查找用户
         User user = findUserByAccount(account);
-        
-        // 如果用户不存在或密码不匹配，则抛出异常
         if (user == null || !encoder.matches(password, user.getPasswordHash())) {
             throw new BizException(LOGIN_FAILED_MSG);
         }
-        
-        // 如果用户状态异常，则抛出异常
         if (user.getStatus() == null || user.getStatus() != STATUS_NORMAL) {
             throw new BizException("账号状态异常，无法登录");
         }
@@ -124,7 +138,6 @@ public class AuthServiceImpl implements AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         sysUserMapper.updateLastLoginAt(user.getId(), user.getLastLoginAt());
 
-        // 返回登录成功信息
         LoginVO vo = new LoginVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());

@@ -6,22 +6,24 @@ import com.campus.food.campusfood.service.FoodItemService;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
+/**
+ * {@link FoodItemService} 的实现，查询委托给 Mapper。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Service
 public class FoodItemServiceImpl implements FoodItemService {
     private final FoodItemMapper foodItemMapper;
 
+    /**
+     * @param foodItemMapper 菜品 Mapper
+     */
     public FoodItemServiceImpl(FoodItemMapper foodItemMapper) {
         this.foodItemMapper = foodItemMapper;
     }
 
-    /**
-         * 按商户ID查询美食。
-         *
-         * @param merchantId 商户ID
-         * @param offset     起始偏移量
-         * @param size       每页条数
-         * @return 美食列表；无数据返回空列表
-         */
+    /** {@inheritDoc} */
     @Override
     public List<FoodItem> selectByMerchantId(Long merchantId, int offset, int size) {
         return foodItemMapper.selectByMerchantId(merchantId, offset, size);

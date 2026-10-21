@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: campus-food 前端联调 API
+  version: 1.1.0
+  description: |
+    导入 Apifox/Postman 后配置环境变量：
+    - baseUrl = http://localhost:8080
+    - token = 登录后 Bearer 令牌（不含 Bearer 前缀）
+    登录接口可配置后置脚本：pm.environment.set("token", pm.response.json().token)
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /auth/register:
+    post:
+      tags: [认证]
+      summary: 注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDTO'
+      responses:
+        '200':
+          description: RegisterVO
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterVO'
+
+  /auth/login:
+    post:
+      tags: [认证]
+      summary: 登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDTO'
+      responses:
+        '200':
+          description: LoginVO
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginVO'
+
+  /user/profile:
+    get:
+      tags: [用户]
+      security: [{ bearerAuth: [] }]
+      summary: 当前用户资料
+      responses:
+        '200':
+          description: UserProfileVO
+    put:
+      tags: [用户]
+      security: [{ bearerAuth: [] }]
+      summary: 更新资料
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileDTO'
+      responses:
+        '200':
+          description: UserProfileVO
+
+  /food/categories:
+    get:
+      tags: [美食]
+      summary: 分类树（无需登录）
+      responses:
+        '200':
+          description: FoodCategoryVO[]
+
+  /food/list:
+    get:
+      tags: [美食]
+      summary: 上架美食分页（无需登录）
+      parameters:
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: campusArea, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        '200':
+          description: PageVO FoodItemVO
+
+  /food/search:
+    get:
+      tags: [美食]
+      summary: 关键词搜索（无需登录）
+      parameters:
+        - { name: keyword, in: query, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: size, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: PageVO FoodItemVO
+
+  /food/recommend:
+    get:
+      tags: [美食]
+      security: [{ bearerAuth: [] }]
+      summary: 个性化推荐（需登录且已设口味）
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        '200':
+          description: FoodRecommendVO[]
+
+  /food/{id}:
+    get:
+      tags: [美食]
+      summary: 美食详情（无需登录）
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: FoodItemVO
+
+  /food/{id}/reviews:
+    get:
+      tags: [美食]
+      summary: 评价列表（无需登录）
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: size, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: PageVO FoodReviewVO
+    post:
+      tags: [美食]
+      security: [{ bearerAuth: [] }]
+      summary: 发表评价
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewDTO'
+      responses:
+        '200':
+          description: FoodReviewVO
+
+  /merchant/insert:
+    post:
+      tags: [商家]
+      security: [{ bearerAuth: [] }]
+      summary: 入驻申请
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantWrite'
+      responses:
+        '200':
+          description: 影响行数 integer
+
+  /merchant/mine:
+    get:
+      tags: [商家]
+      security: [{ bearerAuth: [] }]
+      summary: 我的店铺
+      responses:
+        '200':
+          description: Merchant[]
+
+  /merchant/foods/save:
+    post:
+      tags: [店主菜品]
+      security: [{ bearerAuth: [] }]
+      summary: 新增菜品
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantFoodSaveDTO'
+      responses:
+        '200':
+          description: 新菜品 id
+
+  /admin/merchants/pending:
+    get:
+      tags: [管理员]
+      security: [{ bearerAuth: [] }]
+      summary: 待审店铺
+      responses:
+        '200':
+          description: Merchant[]
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterDTO:
+      type: object
+      required: [password, nickname]
+      properties:
+        phone: { type: string }
+        email: { type: string }
+        password: { type: string }
+        nickname: { type: string }
+    RegisterVO:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        nickname: { type: string }
+        roleId: { type: integer }
+    LoginDTO:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+    LoginVO:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        nickname: { type: string }
+        roleId: { type: integer }
+        token: { type: string }
+    UpdateProfileDTO:
+      type: object
+      properties:
+        nickname: { type: string }
+        gender: { type: integer }
+        tasteTags: { type: string }
+        dislikeIngredients: { type: string }
+    CreateReviewDTO:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        content: { type: string }
+    MerchantWrite:
+      type: object
+      properties:
+        shopName: { type: string }
+        campusArea: { type: string }
+        address: { type: string }
+        contactPhone: { type: string }
+        logoUrl: { type: string }
+        description: { type: string }
+        licenseImgUrl: { type: string }
+    MerchantFoodSaveDTO:
+      type: object
+      properties:
+        name: { type: string }
+        price: { type: number }
+        stock: { type: integer }
+        description: { type: string }
+        coverUrl: { type: string }
+        categoryId: { type: integer }
+        tasteTags: { type: string }
+        ingredients: { type: string }

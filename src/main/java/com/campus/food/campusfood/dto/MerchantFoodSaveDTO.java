@@ -4,9 +4,16 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
+/**
+ * 店主新增或修改菜品的请求体。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Data
 public class MerchantFoodSaveDTO {
-    
+
+    /** 美食 ID。新增时忽略，修改以路径参数为准 */
     private Long id;
 
     /**
@@ -15,7 +22,7 @@ public class MerchantFoodSaveDTO {
     private String name;
 
     /**
-     * 美食价格
+     * 价格，单位元
      */
     private BigDecimal price;
     
@@ -39,6 +46,7 @@ public class MerchantFoodSaveDTO {
      */
     private Integer categoryId;
 
+    /** 口味标签，逗号分隔 */
     private String tasteTags;
 
     /**

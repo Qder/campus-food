@@ -14,14 +14,22 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 店铺业务实现。入驻申请绑定当前用户；改删前校验店主身份。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Service
 public class MerchantServiceImpl implements MerchantService {
 
+    /** 经营状态：营业。用户端只展示审核通过且营业中的店 */
     private static final int STATUS_OPEN = 1;
 
     @Autowired
     private MerchantMapper merchantMapper;
 
+    /** {@inheritDoc} */
     @Override
     public int insert(Merchant merchant) {
         if (merchant == null) {
@@ -47,6 +55,7 @@ public class MerchantServiceImpl implements MerchantService {
         return rows;
     }
 
+    /** {@inheritDoc} */
     @Override
     public int deleteById(Long id) {
         if (id == null) {
@@ -60,6 +69,7 @@ public class MerchantServiceImpl implements MerchantService {
         return rows;
     }
 
+    /** {@inheritDoc} */
     @Override
     public List<Merchant> selectByOwnerUserId(Long ownerUserId) {
         if (ownerUserId == null) {
@@ -69,6 +79,7 @@ public class MerchantServiceImpl implements MerchantService {
         return list != null ? list : Collections.emptyList();
     }
 
+    /** {@inheritDoc} */
     @Override
     public List<Merchant> selectByCondition(MerchantQueryDTO merchantQueryDTO) {
         MerchantQueryDTO query = merchantQueryDTO != null ? merchantQueryDTO : new MerchantQueryDTO();
@@ -76,6 +87,7 @@ public class MerchantServiceImpl implements MerchantService {
         return list != null ? list : Collections.emptyList();
     }
 
+    /** {@inheritDoc} */
     @Override
     public Merchant selectById(Long id) {
         if (id == null) {
@@ -84,12 +96,14 @@ public class MerchantServiceImpl implements MerchantService {
         return merchantMapper.selectById(id);
     }
 
+    /** {@inheritDoc} */
     @Override
     public List<Merchant> selectAll() {
         List<Merchant> list = merchantMapper.selectAll();
         return list != null ? list : Collections.emptyList();
     }
 
+    /** {@inheritDoc} */
     @Override
     public int update(Merchant merchant) {
         if (merchant == null || merchant.getId() == null) {
@@ -103,6 +117,7 @@ public class MerchantServiceImpl implements MerchantService {
         return rows;
     }
 
+    /** {@inheritDoc} */
     @Override
     public Merchant getVisibleById(Long id) {
         if (id == null) {
@@ -119,11 +134,13 @@ public class MerchantServiceImpl implements MerchantService {
         return merchant;
     }
 
+    /** {@inheritDoc} */
     @Override
     public List<Merchant> listMine() {
         return selectByOwnerUserId(requireCurrentUserId());
     }
 
+    /** 当前登录用户。未登录时中断，避免入驻申请没有店主。 */
     private Long requireCurrentUserId() {
         Long userId = UserContext.getUserId();
         if (userId == null) {
@@ -132,6 +149,7 @@ public class MerchantServiceImpl implements MerchantService {
         return userId;
     }
 
+    /** 店铺必须存在且店主是当前用户，改删不能碰到别人的店。 */
     private void requireOwnedMerchant(Long merchantId) {
         Long currentUserId = requireCurrentUserId();
         Merchant existing = merchantMapper.selectById(merchantId);

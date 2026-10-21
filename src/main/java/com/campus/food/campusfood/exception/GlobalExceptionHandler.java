@@ -11,18 +11,34 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 把业务异常、参数校验失败和未捕获异常收成统一的 {@code code}、{@code message}。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /** 业务异常：可预期，正常返回 400 */
+    /**
+     * 业务异常按可预期错误返回 400，文案使用异常消息。
+     *
+     * @param e 业务异常
+     * @return 含 code、message 的 400 响应
+     */
     @ExceptionHandler(BizException.class)
     public ResponseEntity<Map<String, Object>> handleBiz(BizException e) {
         return ResponseEntity.badRequest().body(body(400, e.getMessage()));
     }
 
-    /** 参数校验失败：取第一条错误信息 */
+    /**
+     * 参数校验失败时只返回第一条错误，避免一次抛出整份字段清单。
+     *
+     * @param e 校验异常
+     * @return 含 code、message 的 400 响应
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValid(MethodArgumentNotValidException e) {
         FieldError fe = e.getBindingResult().getFieldError();
@@ -30,7 +46,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body(400, msg));
     }
 
-    /** 其他异常：对外固定文案，对内打日志 */
+    /**
+     * 未预期异常对外返回固定文案，细节只写日志，避免把内部信息暴露给调用方。
+     *
+     * @param e 未捕获异常
+     * @return 含 code、message 的 500 响应
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleOther(Exception e) {
         log.error("未处理异常", e);

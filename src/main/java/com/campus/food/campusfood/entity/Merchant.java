@@ -9,8 +9,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * {@code merchant}
- * 商家店铺
+ * 商家店铺，对应表 {@code merchant}。
+ *
+ * @author yang
+ * @since 2026-10-16
  */
 @Data
 @Builder

@@ -1,0 +1,65 @@
+# 商家接口手工测试（VS Code REST Client / Apifox 导入）
+# 先启动应用，数据库有用户与种子数据；除登录外接口均需 JWT。
+
+@baseUrl = http://localhost:8080
+@token = 粘贴登录返回的 token
+
+### 1. 登录（获取 token）
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "你的手机号或邮箱",
+  "password": "你的密码"
+}
+
+### 2. 入驻申请
+POST {{baseUrl}}/merchant/insert
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "shopName": "测试食堂窗口",
+  "campusArea": "一食堂",
+  "address": "一楼东侧",
+  "contactPhone": "13800138000",
+  "description": "课设测试店铺"
+}
+
+### 3. 我的店铺列表（店主）
+GET {{baseUrl}}/merchant/mine
+Authorization: Bearer {{token}}
+
+### 4. 按条件查询（Body）
+POST {{baseUrl}}/merchant/listByCondition
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "shopName": "食堂",
+  "pageNum": 1,
+  "pageSize": 10
+}
+
+### 5. 用户端店铺列表（仅审核通过且营业中）
+GET {{baseUrl}}/merchant/list
+Authorization: Bearer {{token}}
+
+### 6. 按 ID 查询
+GET {{baseUrl}}/merchant/get/1
+Authorization: Bearer {{token}}
+
+### 7. 更新店铺（须为 owner，body 带 id）
+PUT {{baseUrl}}/merchant/update
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "shopName": "新店名",
+  "description": "更新说明"
+}
+
+### 8. 逻辑删除
+PUT {{baseUrl}}/merchant/delete/1
+Authorization: Bearer {{token}}

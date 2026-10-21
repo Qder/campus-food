@@ -15,7 +15,12 @@ import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.service.MerchantFoodService;
 
-
+/**
+ * 店主菜品维护实现。新增只挂到当前用户第一家审核通过的店。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Service
 public class MerchantFoodServiceImpl implements MerchantFoodService {
 
@@ -25,10 +30,14 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
     @Autowired
     private MerchantMapper merchantMapper;
 
+    /**
+     * @param foodItemMapper 菜品 Mapper
+     */
     public MerchantFoodServiceImpl(FoodItemMapper foodItemMapper) {
         this.foodItemMapper = foodItemMapper;
     }
 
+    /** {@inheritDoc} */
     @Override
     public Long save(MerchantFoodSaveDTO dto) {
         Merchant merchant = requireApprovedShop();
@@ -55,16 +64,16 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
         return foodItem;
     }
 
+    /** {@inheritDoc} */
     @Override
     public void deleteById(Long id) {
-        /** 美食存在且属于当前用户的店。 */
         FoodItem foodItem = requireOwnedFood(id);
         foodItemMapper.logicalDeleteById(foodItem.getId());
     }
 
+    /** {@inheritDoc} */
     @Override
     public int updateById(Long id, MerchantFoodSaveDTO dto) {
-        /** 美食存在且属于当前用户的店。 */
         FoodItem foodItem = requireOwnedFood(id);
         foodItem.setName(dto.getName());
         foodItem.setPrice(dto.getPrice());
@@ -109,6 +118,7 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
         return foodItem;
     }
 
+    /** 取当前登录用户。未登录时中断，避免菜品挂到空店主上。 */
     private Long requireMerchantUserId() {
         Long userId = UserContext.getUserId();
         if (userId == null) {

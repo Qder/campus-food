@@ -12,15 +12,26 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-/** JWT 签发与解析，配置项见 {@code application.yml} 的 {@code jwt} 节点 */
+/**
+ * JWT 签发与解析，配置项见 {@code application.yml} 的 {@code jwt} 节点。
+ *
+ * @author yang
+ * @since 2026-10-16
+ */
 @Component
 public class JwtUtil {
 
+    /** 载荷中的用户 ID 声明名 */
     public static final String CLAIM_USER_ID = "userId";
+
+    /** 载荷中的角色 ID 声明名 */
     public static final String CLAIM_ROLE_ID = "roleId";
 
     private final JwtProperties jwtProperties;
 
+    /**
+     * @param jwtProperties JWT 配置，密钥与过期时间从中读取
+     */
     public JwtUtil(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
     }
@@ -31,7 +42,13 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /** 登录成功后签发 access token，载荷含 userId、roleId */
+    /**
+     * 登录成功后签发访问令牌，载荷含用户 ID 与角色 ID。
+     *
+     * @param userId 用户 ID
+     * @param roleId 角色 ID
+     * @return 已签名的 JWT
+     */
     public String generateToken(Long userId, Integer roleId) {
         Date now = new Date();
         long ttlMs = jwtProperties.getExpireMinutes() * 60_000L;
@@ -47,7 +64,13 @@ public class JwtUtil {
                 .compact();
     }
 
-    /** 验签并解析 payload，失败抛异常 */
+    /**
+     * 验签并解析载荷。
+     *
+     * @param token 去掉前缀后的 JWT，不能为空
+     * @return 载荷
+     * @throws io.jsonwebtoken.JwtException 签名错误、过期或格式非法时
+     */
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey())
@@ -56,7 +79,12 @@ public class JwtUtil {
                 .getPayload();
     }
 
-    /** 签名正确且未过期返回 true */
+    /**
+     * 判断令牌是否可用。
+     *
+     * @param token 去掉前缀后的 JWT
+     * @return 签名正确且未过期时为 true，否则为 false
+     */
     public boolean validateToken(String token) {
         try {
             parseToken(token);
@@ -68,7 +96,13 @@ public class JwtUtil {
         }
     }
 
-    /** 从 token 中读取 userId */
+    /**
+     * 从令牌中读取用户 ID。
+     *
+     * @param token 去掉前缀后的 JWT
+     * @return 用户 ID；载荷中没有该声明时为 null
+     * @throws io.jsonwebtoken.JwtException 令牌无法解析时
+     */
     public Long getUserId(String token) {
         Object id = parseToken(token).get(CLAIM_USER_ID);
         if (id == null) {
@@ -80,7 +114,13 @@ public class JwtUtil {
         return Long.valueOf(id.toString());
     }
 
-    /** 从 token 中读取 roleId */
+    /**
+     * 从令牌中读取角色 ID。
+     *
+     * @param token 去掉前缀后的 JWT
+     * @return 角色 ID；载荷中没有该声明时为 null
+     * @throws io.jsonwebtoken.JwtException 令牌无法解析时
+     */
     public Integer getRoleId(String token) {
         Object role = parseToken(token).get(CLAIM_ROLE_ID);
         if (role == null) {
@@ -92,7 +132,12 @@ public class JwtUtil {
         return Integer.valueOf(role.toString());
     }
 
-    /** 从 Authorization 头去掉 Bearer 前缀，得到裸 token */
+    /**
+     * 从 Authorization 头去掉配置的前缀，得到裸令牌。
+     *
+     * @param authorizationHeader 请求头原值，可为 null
+     * @return 裸令牌；头为空时返回 null
+     */
     public String resolveToken(String authorizationHeader) {
         if (authorizationHeader == null || authorizationHeader.isBlank()) {
             return null;
@@ -104,7 +149,11 @@ public class JwtUtil {
         return authorizationHeader.trim();
     }
 
-    /** 配置中的请求头名称，一般为 Authorization */
+    /**
+     * 读取配置中的请求头名称。
+     *
+     * @return 请求头名，默认 Authorization
+     */
     public String getHeaderName() {
         return jwtProperties.getHeader();
     }

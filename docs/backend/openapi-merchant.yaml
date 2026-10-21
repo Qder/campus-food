@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: campus-food 商家与登录
+  version: 1.0.0
+  description: 导入 Apifox 后配置环境变量 baseUrl、token，并在登录接口后置脚本写入 token。
+
+servers:
+  - url: http://localhost:8080
+    description: 本地
+
+paths:
+  /auth/login:
+    post:
+      summary: 登录获取 JWT
+      tags: [认证]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: 手机号或邮箱
+                password:
+                  type: string
+      responses:
+        '200':
+          description: LoginVO，含 token 字段
+
+  /merchant/insert:
+    post:
+      summary: 入驻申请
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantWrite'
+      responses:
+        '200':
+          description: 影响行数
+
+  /merchant/update:
+    put:
+      summary: 更新自己的店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/MerchantWrite'
+                - type: object
+                  required: [id]
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+      responses:
+        '200':
+          description: 影响行数
+
+  /merchant/delete/{id}:
+    put:
+      summary: 逻辑删除店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 影响行数
+
+  /merchant/mine:
+    get:
+      summary: 当前用户名下店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Merchant 列表
+
+  /merchant/listByCondition:
+    post:
+      summary: 条件查询店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantQuery'
+      responses:
+        '200':
+          description: Merchant 列表
+
+  /merchant/list:
+    get:
+      summary: 审核通过且营业中的店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Merchant 列表
+
+  /merchant/get/{id}:
+    get:
+      summary: 按 ID 查询店铺
+      tags: [商家]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Merchant 或 null
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    MerchantWrite:
+      type: object
+      properties:
+        shopName:
+          type: string
+        campusArea:
+          type: string
+        address:
+          type: string
+        contactPhone:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+
+    MerchantQuery:
+      type: object
+      properties:
+        shopName:
+          type: string
+        shopAddress:
+          type: string
+        auditStatus:
+          type: integer
+        status:
+          type: integer
+        pageNum:
+          type: integer
+        pageSize:
+          type: integer

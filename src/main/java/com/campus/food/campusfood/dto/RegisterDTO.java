@@ -8,6 +8,9 @@ import lombok.Data;
 
 /**
  * 用户注册请求体，对应 {@code POST /auth/register}。
+ *
+ * @author yang
+ * @since 2026-10-16
  */
 @Data
 public class RegisterDTO {
@@ -33,6 +36,8 @@ public class RegisterDTO {
 
     /**
      * Bean Validation 回调：手机号、邮箱至少填一项。
+     *
+     * @return 至少有一项非空白时为 true
      */
     @AssertTrue(message = "手机号或邮箱至少填写一个")
     public boolean isAccountPresent() {
