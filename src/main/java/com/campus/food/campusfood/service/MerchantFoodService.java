@@ -1,6 +1,9 @@
 package com.campus.food.campusfood.service;
 
+import java.util.List;
+
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
+import com.campus.food.campusfood.vo.FoodItemVO;
 
 /**
  * 店主维护本店菜品。
@@ -36,4 +39,28 @@ public interface MerchantFoodService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在或无权操作时
      */
     int updateById(Long id, MerchantFoodSaveDTO dto) throws RuntimeException;
+
+    /**
+     * 查看当前店主名下的菜品。
+     *
+     * @return 当前用户名下各店铺的菜品 VO 列表
+     * @throws com.campus.food.campusfood.exception.BizException 未登录时
+     */
+    List<FoodItemVO> listMine();
+
+    /**
+     * 将菜品设为上架（{@code status=1}）。用户端列表/详情仅展示上架菜。
+     *
+     * @param id 美食 ID，不能为空
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在、已逻辑删除或无权操作时
+     */
+    void onShelf(Long id);
+
+    /**
+     * 将菜品设为下架（{@code status=2}）。记录保留，用户端不可见，店主仍可在「我的菜品」中查看。
+     *
+     * @param id 美食 ID，不能为空
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在、已逻辑删除或无权操作时
+     */
+    void offShelf(Long id);
 }
