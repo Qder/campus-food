@@ -15,6 +15,7 @@ import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.MerchantFoodService;
 import com.campus.food.campusfood.vo.FoodItemVO;
+import com.campus.food.campusfood.vo.FoodReviewVO;
 
 /**
  * 店主维护本店菜品：新增、修改、上下架、逻辑删除、查询本店列表。均需 JWT；新增须店铺已审核通过。
@@ -95,5 +96,11 @@ public class MerchantFoodController {
     @GetMapping("/mine")
     public List<FoodItemVO> mine() {
         return merchantFoodService.listMine();
+    }
+
+    //商家查看本店菜品的评价
+    @GetMapping("/{foodId}/reviews")
+    public List<FoodReviewVO> reviews(@PathVariable Long foodId) {
+        return merchantFoodService.listReviews(foodId);
     }
 }

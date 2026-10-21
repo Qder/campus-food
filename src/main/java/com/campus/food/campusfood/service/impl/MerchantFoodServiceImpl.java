@@ -9,14 +9,17 @@ import org.springframework.stereotype.Service;
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.entity.FoodItem;
+import com.campus.food.campusfood.entity.FoodReview;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.enums.FoodItemStatus;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
+import com.campus.food.campusfood.mapper.FoodReviewMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.service.MerchantFoodService;
 import com.campus.food.campusfood.vo.FoodItemVO;
+import com.campus.food.campusfood.vo.FoodReviewVO;
 
 /**
  * 店主菜品维护实现。新增只挂到当前用户第一家审核通过的店。
@@ -32,6 +35,9 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
 
     @Autowired
     private MerchantMapper merchantMapper;
+
+    @Autowired
+    private FoodReviewMapper foodReviewMapper;
 
     /**
      * @param foodItemMapper 菜品 Mapper
@@ -200,5 +206,12 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
         vo.setTasteTags(item.getTasteTags());
         vo.setIngredients(item.getIngredients());
         return vo;
+    }
+
+    @Override
+    public List<FoodReviewVO> listReviews(Long foodId) {
+        requireOwnedFood(foodId);
+        List<FoodReviewVO> foodReviews = foodReviewMapper.selectVisibleByFoodId(foodId, 0, 1000);
+        return foodReviews;
     }
 }

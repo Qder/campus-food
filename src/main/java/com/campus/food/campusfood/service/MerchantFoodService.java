@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.vo.FoodItemVO;
+import com.campus.food.campusfood.vo.FoodReviewVO;
 
 /**
  * 店主维护本店菜品。
@@ -63,4 +64,6 @@ public interface MerchantFoodService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在、已逻辑删除或无权操作时
      */
     void offShelf(Long id);
+
+    List<FoodReviewVO> listReviews(Long foodId);
 }
