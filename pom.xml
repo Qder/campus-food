@@ -17,7 +17,6 @@
 
     <modules>
         <module>campus-food-common</module>
-        <module>campus-food-app</module>
         <module>eureka-server</module>
         <module>api-gateway</module>
         <module>user-service</module>

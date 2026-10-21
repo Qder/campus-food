@@ -4,6 +4,23 @@ server:
 spring:
   application:
     name: food-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_food?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.campus.food.campusfood.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: "change-me-please-change-me-please-1234567890"
+  expire-minutes: 120
+  header: "Authorization"
+  prefix: "Bearer "
 
 eureka:
   client:

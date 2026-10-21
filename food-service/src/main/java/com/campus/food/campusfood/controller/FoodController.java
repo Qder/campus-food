@@ -2,8 +2,6 @@ package com.campus.food.campusfood.controller;
 
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.CreateReviewDTO;
-import com.campus.food.campusfood.dto.MerchantQueryDTO;
-import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.FoodReviewService;
 import com.campus.food.campusfood.service.FoodService;

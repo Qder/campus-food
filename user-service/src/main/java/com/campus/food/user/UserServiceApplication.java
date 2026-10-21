@@ -1,16 +1,18 @@
 package com.campus.food.user;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * 用户服务入口。当前仅骨架，业务仍在单体 {@code src/}。
+ * 用户服务入口。
  *
  * @author yang
  * @since 2026-10-21
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.campus.food")
+@MapperScan("com.campus.food.campusfood.mapper")
 @EnableFeignClients
 public class UserServiceApplication {
 
