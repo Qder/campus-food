@@ -136,6 +136,38 @@
           AND deleted = 0
     </select>
 
+    <sql id="Owner_Food_From">
+        FROM food_item f
+        INNER JOIN merchant m ON m.id = f.merchant_id AND m.deleted = 0
+        WHERE f.deleted = 0
+          AND m.owner_user_id = #{ownerUserId}
+        <if test="merchantId != null">
+            AND f.merchant_id = #{merchantId}
+        </if>
+        <if test="status != null">
+            AND f.status = #{status}
+        </if>
+        <if test="categoryId != null">
+            AND f.category_id = #{categoryId}
+        </if>
+    </sql>
+
+    <select id="countByOwnerUserId" resultType="int">
+        SELECT COUNT(*)
+        <include refid="Owner_Food_From" />
+    </select>
+
+    <select id="selectByOwnerUserId" resultMap="FoodItemVOMap">
+        SELECT
+            f.id, f.merchant_id, m.shop_name, m.campus_area, f.category_id, f.name,
+            f.food_type, f.price, f.stock, f.description, f.cover_url, f.avg_score,
+            f.review_count, f.sales_count, f.recommend_tag, f.status,
+            f.taste_tags, f.ingredients
+        <include refid="Owner_Food_From" />
+        ORDER BY f.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
     <update id="updateScoreAfterReview">
         UPDATE food_item
         SET avg_score = ROUND((avg_score * review_count + #{score}) / (review_count + 1), 2),

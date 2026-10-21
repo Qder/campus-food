@@ -1,6 +1,5 @@
 package com.campus.food.campusfood.service.impl;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.entity.FoodItem;
-import com.campus.food.campusfood.entity.FoodReview;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.enums.FoodItemStatus;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
@@ -20,9 +18,10 @@ import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.service.MerchantFoodService;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodReviewVO;
+import com.campus.food.campusfood.vo.PageVO;
 
 /**
- * 店主菜品维护实现。新增只挂到当前用户第一家审核通过的店。
+ * 店主菜品维护实现。新增只挂到当前用户第一家审核通过的店；评价查询须通过 {@link #requireOwnedFood(Long)} 防越权。
  *
  * @author yang
  * @since 2026-10-16
@@ -30,8 +29,15 @@ import com.campus.food.campusfood.vo.FoodReviewVO;
 @Service
 public class MerchantFoodServiceImpl implements MerchantFoodService {
 
+    /** 默认页码 */
+    private static final int DEFAULT_PAGE = 1;
+    /** 默认每页条数 */
+    private static final int DEFAULT_SIZE = 10;
+    /** 每页条数上限 */
+    private static final int MAX_SIZE = 50;
+
     @Autowired
-    private  FoodItemMapper foodItemMapper;
+    private FoodItemMapper foodItemMapper;
 
     @Autowired
     private MerchantMapper merchantMapper;
@@ -138,23 +144,36 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
 
     /** {@inheritDoc} */
     @Override
-    public List<FoodItemVO> listMine() {
+    public PageVO<FoodItemVO> listMine(Integer page, Integer size, Integer status, Integer categoryId,
+                                       Long merchantId) {
         Long curUserId = requireMerchantUserId();
-        List<Merchant> merchants = merchantMapper.selectByOwnerUserId(curUserId);
-        if (merchants == null || merchants.isEmpty()) {
-            return List.of();
+        validateOwnedMerchantId(merchantId, curUserId);
+
+        int p = page == null || page < 1 ? DEFAULT_PAGE : page;
+        int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+
+        int total = foodItemMapper.countByOwnerUserId(curUserId, merchantId, status, categoryId);
+        List<FoodItemVO> list = total == 0
+                ? List.of()
+                : foodItemMapper.selectByOwnerUserId(curUserId, merchantId, status, categoryId, (p - 1) * s, s);
+
+        PageVO<FoodItemVO> vo = new PageVO<>();
+        vo.setTotal(total);
+        vo.setPage(p);
+        vo.setSize(s);
+        vo.setList(list);
+        return vo;
+    }
+
+    /** 若指定店铺 ID，须属于当前店主。 */
+    private void validateOwnedMerchantId(Long merchantId, Long curUserId) {
+        if (merchantId == null) {
+            return;
         }
-        List<FoodItemVO> result = new ArrayList<>();
-        for (Merchant merchant : merchants) {
-            List<FoodItem> foodItems = foodItemMapper.selectByMerchantId(merchant.getId(), 0, 1000);
-            if (foodItems == null || foodItems.isEmpty()) {
-                continue;
-            }
-            for (FoodItem item : foodItems) {
-                result.add(toFoodItemVo(item, merchant));
-            }
+        Merchant shop = merchantMapper.selectById(merchantId);
+        if (shop == null || !curUserId.equals(shop.getOwnerUserId())) {
+            throw new BizException("您没有权限操作");
         }
-        return result;
     }
 
     /** {@inheritDoc} */
@@ -205,13 +224,56 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
         vo.setStatus(item.getStatus());
         vo.setTasteTags(item.getTasteTags());
         vo.setIngredients(item.getIngredients());
+        vo.setCampusArea(merchant.getCampusArea());
+        vo.setShopName(merchant.getShopName());
         return vo;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>与用户端 {@code GET /food/{id}/reviews} 使用同一套「可见」条件，区别在本方法强制校验店主身份。
+     */
     @Override
-    public List<FoodReviewVO> listReviews(Long foodId) {
+    public PageVO<FoodReviewVO> listReviews(Long foodId, Integer page, Integer size) {
         requireOwnedFood(foodId);
-        List<FoodReviewVO> foodReviews = foodReviewMapper.selectVisibleByFoodId(foodId, 0, 1000);
-        return foodReviews;
+
+        int p = page == null || page < 1 ? DEFAULT_PAGE : page;
+        int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+
+        int total = foodReviewMapper.countVisibleByFoodId(foodId);
+        List<FoodReviewVO> list = total == 0
+                ? List.of()
+                : foodReviewMapper.selectVisibleByFoodId(foodId, (p - 1) * s, s);
+
+        PageVO<FoodReviewVO> vo = new PageVO<>();
+        vo.setTotal(total);
+        vo.setPage(p);
+        vo.setSize(s);
+        vo.setList(list);
+        return vo;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public FoodItemVO getFoodDetail(Long id) {
+        FoodItem foodItem = requireOwnedFoodDetail(id);
+        return toFoodItemVo(foodItem, null);
+    }
+
+    /** 美食存在且属于当前用户的店。 */
+    private FoodItem requireOwnedFoodDetail(Long id) {
+        if (id == null) {
+            throw new BizException("美食 ID 不能为空");
+        }
+        Long curUserId = requireMerchantUserId();
+        FoodItem foodItem = foodItemMapper.selectById(id);
+        if (foodItem == null) {
+            throw new BizException("美食不存在");
+        }
+        if (foodItem == null || !curUserId.equals(foodItem.getMerchantId())) {
+            throw new BizException("您没有权限操作");
+        }
+        return foodItem;
     }
 }

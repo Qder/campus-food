@@ -122,4 +122,36 @@ public interface FoodItemMapper {
     List<FoodItem> selectByMerchantId(@Param("merchantId") Long merchantId,
                                       @Param("offset") int offset,
                                       @Param("size") int size);
+
+    /**
+     * 统计店主名下菜品数（未逻辑删除）。
+     *
+     * @param ownerUserId 店主用户 ID
+     * @param merchantId  店铺 ID，可为 null
+     * @param status      菜品状态，可为 null
+     * @param categoryId  分类 ID，可为 null
+     * @return 命中条数
+     */
+    int countByOwnerUserId(@Param("ownerUserId") Long ownerUserId,
+                           @Param("merchantId") Long merchantId,
+                           @Param("status") Integer status,
+                           @Param("categoryId") Integer categoryId);
+
+    /**
+     * 分页查询店主名下菜品。
+     *
+     * @param ownerUserId 店主用户 ID
+     * @param merchantId  店铺 ID，可为 null
+     * @param status      菜品状态，可为 null
+     * @param categoryId  分类 ID，可为 null
+     * @param offset      起始偏移量
+     * @param size        每页条数
+     * @return 菜品 VO 列表；无数据返回空列表
+     */
+    List<FoodItemVO> selectByOwnerUserId(@Param("ownerUserId") Long ownerUserId,
+                                         @Param("merchantId") Long merchantId,
+                                         @Param("status") Integer status,
+                                         @Param("categoryId") Integer categoryId,
+                                         @Param("offset") int offset,
+                                         @Param("size") int size);
 }

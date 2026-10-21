@@ -1,13 +1,12 @@
 package com.campus.food.campusfood.service;
 
-import java.util.List;
-
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodReviewVO;
+import com.campus.food.campusfood.vo.PageVO;
 
 /**
- * 店主维护本店菜品。
+ * 店主维护本店菜品及查看本人店铺菜品下的用户评价。
  *
  * @author yang
  * @since 2026-10-16
@@ -42,12 +41,17 @@ public interface MerchantFoodService {
     int updateById(Long id, MerchantFoodSaveDTO dto) throws RuntimeException;
 
     /**
-     * 查看当前店主名下的菜品。
+     * 分页查询当前店主名下的菜品，可按店铺、状态、分类筛选。
      *
-     * @return 当前用户名下各店铺的菜品 VO 列表
-     * @throws com.campus.food.campusfood.exception.BizException 未登录时
+     * @param page       页码，从 1 开始，可为 null
+     * @param size       每页条数，可为 null
+     * @param status     菜品状态，可为 null
+     * @param categoryId 分类 ID，可为 null
+     * @param merchantId 店铺 ID，可为 null；传入时须属于当前用户
+     * @return 分页结果
+     * @throws com.campus.food.campusfood.exception.BizException 未登录或无权查看指定店铺时
      */
-    List<FoodItemVO> listMine();
+    PageVO<FoodItemVO> listMine(Integer page, Integer size, Integer status, Integer categoryId, Long merchantId);
 
     /**
      * 将菜品设为上架（{@code status=1}）。用户端列表/详情仅展示上架菜。
@@ -65,5 +69,17 @@ public interface MerchantFoodService {
      */
     void offShelf(Long id);
 
-    List<FoodReviewVO> listReviews(Long foodId);
+    /**
+     * 分页查看指定菜品下的可见评价。与用户端展示规则一致，但须先校验菜品属于当前店主。
+     *
+     * @param foodId 美食 ID，不能为空
+     * @param page   页码，从 1 开始，可为 null
+     * @param size   每页条数，可为 null
+     * @return 审核通过且展示中的评价分页结果
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在或无权查看时
+     */
+    PageVO<FoodReviewVO> listReviews(Long foodId, Integer page, Integer size);
+
+    //查看单条美食详情
+    FoodItemVO getFoodDetail(Long id);
 }
