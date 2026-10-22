@@ -4,6 +4,7 @@ import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
+import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserServiceImpl implements UserService {
 
+    private static final Integer ROLE_MERCHANT = 2;
     @Autowired
     private UserMapper userMapper;
 
@@ -168,5 +170,32 @@ public class UserServiceImpl implements UserService {
         vo.setTasteTags(user.getTasteTags());
         vo.setDislikeIngredients(user.getDislikeIngredients());
         return vo;
+    }
+
+    @Override
+    public UserInfo getUserInfo(Long id) {
+        User user = userMapper.selectById(id);
+        if (user == null || (user.getDeleted() != null && user.getDeleted() != 0)) {
+            throw new BizException("用户不存在");
+        }
+        UserInfo userInfo = new UserInfo();
+        userInfo.setId(user.getId());
+        userInfo.setNickname(user.getNickname());
+        userInfo.setTasteTags(user.getTasteTags());
+        userInfo.setDislikeIngredients(user.getDislikeIngredients());
+        userInfo.setDeleted(user.getDeleted());
+        userInfo.setRoleId(user.getRoleId());
+        return userInfo;
+    }
+
+    @Override
+    public void setMerchantRole(Long id) {
+        User user = new User();
+        user.setId(id);
+        user.setRoleId(ROLE_MERCHANT);
+        int rows = userMapper.updateById(user);
+        if (rows <= 0) {
+            throw new BizException("设置用户角色失败");
+        }
     }
 }

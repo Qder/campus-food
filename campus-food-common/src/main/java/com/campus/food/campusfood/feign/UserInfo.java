@@ -16,6 +16,6 @@ public class UserInfo {
     private String nickname;
     private String tasteTags;
     private String dislikeIngredients;
-    private int deleted;
-    private int roleId;
+    private Integer deleted;
+    private Integer roleId;
 }

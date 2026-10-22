@@ -38,6 +38,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/user/ping",
                         "/food/ping",
                         "/merchant/ping",
+                        "/internal/**",
                         "/error"
                 );
     }

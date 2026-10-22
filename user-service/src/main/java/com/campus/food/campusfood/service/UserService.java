@@ -1,6 +1,7 @@
 package com.campus.food.campusfood.service;
 
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
+import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
 /**
@@ -27,4 +28,14 @@ public interface UserService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录、用户已删除或字段不合法时
      */
     UserProfileVO updateCurrentProfile(UpdateProfileDTO dto);
+
+    /**
+     * 根据用户ID获取用户信息
+     *
+     * @param id 用户ID
+     * @return 用户信息
+     */
+    UserInfo getUserInfo(Long id);
+
+    void setMerchantRole(Long id);
 }
