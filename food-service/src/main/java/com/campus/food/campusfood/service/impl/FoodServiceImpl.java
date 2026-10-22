@@ -1,5 +1,6 @@
 package com.campus.food.campusfood.service.impl;
 
+import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.entity.FoodCategory;
 import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.exception.BizException;
@@ -14,7 +15,10 @@ import com.campus.food.campusfood.vo.FoodCategoryVO;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodRecommendVO;
 import com.campus.food.campusfood.vo.PageVO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,7 +31,8 @@ import java.util.Set;
 /**
  * 美食浏览与推荐实现。
  *
- * <p>推荐走课设规则打分：由 {@link FoodRecommendScorer} 加权后排序，并用 {@link TagTextUtil} 过滤忌口。
+ * <p>
+ * 推荐走课设规则打分：由 {@link FoodRecommendScorer} 加权后排序，并用 {@link TagTextUtil} 过滤忌口。
  *
  * @author yang
  * @since 2026-10-16
@@ -55,10 +60,17 @@ public class FoodServiceImpl implements FoodService {
     @Autowired
     private UserFeignClient userFeignClient;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /**
      * {@inheritDoc}
      *
-     * <p>按 {@code parentId} 组装树，同级按排序号、ID 升序。
+     * <p>
+     * 按 {@code parentId} 组装树，同级按排序号、ID 升序。
      */
     @Override
     public List<FoodCategoryVO> listCategories() {
@@ -96,7 +108,7 @@ public class FoodServiceImpl implements FoodService {
     /** {@inheritDoc} */
     @Override
     public PageVO<FoodItemVO> listFoods(Integer categoryId, String campusArea, String keyword,
-                                        Integer page, Integer size) {
+            Integer page, Integer size) {
         int p = page == null || page < 1 ? DEFAULT_PAGE : page;
         int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
         // 空白当成未传。Mapper 只在非 null 时加区域或关键词条件
@@ -106,6 +118,23 @@ public class FoodServiceImpl implements FoodService {
         // 传了 keyword 但去空白后为空，说明是无效搜索条件，直接报错
         if (keyword != null && key == null) {
             throw new BizException("搜索关键词不能为空");
+        }
+
+        String redisKey = (key == null)
+                ? "food:hot:cat:" + (categoryId == null ? "all" : categoryId)
+                        + ":area:" + (area == null ? "all" : area)
+                        + ":p" + p + ":s" + s
+                : "food:search:" + key + ":p" + p + ":s" + s;
+
+        try {
+            String json = stringRedisTemplate.opsForValue().get(redisKey);
+            if (json != null && !json.isBlank()) {
+                // 反序列化，将json转换为PageVO<FoodItemVO>对象
+                return objectMapper.readValue(json,
+                        objectMapper.getTypeFactory().constructParametricType(PageVO.class, FoodItemVO.class));
+            }
+        } catch (Exception ignored) {
+            // Redis 挂了就走下面哪一步使用数据库查询数据
         }
 
         int total = foodItemMapper.countOnShelf(categoryId, area, key);
@@ -118,6 +147,20 @@ public class FoodServiceImpl implements FoodService {
         vo.setPage(p);
         vo.setSize(s);
         vo.setList(list);
+
+        // 如果查询到数据，则将数据缓存到Redis中，防止存入空数据
+        if (total > 0) {
+            try {
+                // 设置缓存过期时间，有关键词的缓存时间更短
+                java.time.Duration ttl = (key == null)
+                        ? java.time.Duration.ofMinutes(10)
+                        : java.time.Duration.ofMinutes(5);
+                // 缓存写入（回填 Redis）
+                stringRedisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(vo), ttl);
+            } catch (Exception ignored) {
+            }
+        }
+
         return vo;
     }
 
@@ -127,9 +170,26 @@ public class FoodServiceImpl implements FoodService {
         if (id == null) {
             throw new BizException("美食不存在");
         }
+        // 按照id查询美食
         FoodItemVO vo = foodItemMapper.selectOnShelfById(id);
+        // 如果美食不存在或未上架，则抛出异常
         if (vo == null) {
             throw new BizException("美食不存在或未上架");
+        }
+        // 获取当前用户id
+        Long userId = UserContext.getUserId();
+
+        if (userId != null) {
+            try {
+                // 构建redis key
+                String browseKey = "food:browse:" + userId;
+                // 将美食id添加到redis列表中
+                stringRedisTemplate.opsForList().leftPush(browseKey, String.valueOf(id));
+                // 修剪列表，只保留前50条记录，防止列表过大
+                stringRedisTemplate.opsForList().trim(browseKey, 0, 49);
+            } catch (Exception ignored) {
+                // Redis 挂了就走下面哪一步使用数据库查询数据
+            }
         }
         return vo;
     }
