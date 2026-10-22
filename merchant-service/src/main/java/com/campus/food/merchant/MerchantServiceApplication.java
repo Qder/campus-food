@@ -13,7 +13,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = "com.campus.food")
 @MapperScan("com.campus.food.campusfood.mapper")
-@EnableFeignClients
+@EnableFeignClients(basePackages = "com.campus.food.campusfood.feign")
 public class MerchantServiceApplication {
 
     /**

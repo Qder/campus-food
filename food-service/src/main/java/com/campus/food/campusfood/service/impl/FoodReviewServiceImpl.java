@@ -3,11 +3,11 @@ package com.campus.food.campusfood.service.impl;
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.CreateReviewDTO;
 import com.campus.food.campusfood.entity.FoodReview;
-import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
+import com.campus.food.campusfood.feign.UserFeignClient;
+import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.FoodReviewMapper;
-import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.FoodReviewService;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodReviewVO;
@@ -45,7 +45,7 @@ public class FoodReviewServiceImpl implements FoodReviewService {
     private FoodItemMapper foodItemMapper;
 
     @Autowired
-    private UserMapper userMapper;
+    private UserFeignClient userFeignClient;
 
     /** {@inheritDoc} */
     @Override
@@ -99,7 +99,7 @@ public class FoodReviewServiceImpl implements FoodReviewService {
         foodItemMapper.updateScoreAfterReview(foodId, dto.getScore());
 
         // 返回列表同构字段，便于前端直接展示
-        User user = userMapper.selectById(userId);
+        UserInfo user = userFeignClient.getUserInfo(userId);
         FoodReviewVO vo = new FoodReviewVO();
         vo.setId(review.getId());
         vo.setUserId(userId);

@@ -5,11 +5,11 @@ import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.entity.Merchant;
-import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
+import com.campus.food.campusfood.feign.UserFeignClient;
+import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.MerchantMapper;
-import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ public class AdminServiceImpl implements AdminService {
     private MerchantMapper merchantMapper;
 
     @Autowired
-    private UserMapper userMapper;
+    private UserFeignClient userFeignClient;
 
     /** {@inheritDoc} */
     @Override
@@ -60,11 +60,10 @@ public class AdminServiceImpl implements AdminService {
         if (merchantCreateDTO == null) {
             throw new BizException("店铺信息不能为空");
         }
-        User owner = userMapper.selectById(merchantCreateDTO.getOwnerUserId());
+        UserInfo owner = userFeignClient.getUserInfo(merchantCreateDTO.getOwnerUserId());
         if (owner == null) {
             throw new BizException("店主用户不存在");
         }
-
         LocalDateTime now = LocalDateTime.now();
         Long adminId = requireAdminUserId();
 
@@ -187,16 +186,13 @@ public class AdminServiceImpl implements AdminService {
         if (ownerUserId == null) {
             return;
         }
-        User owner = userMapper.selectById(ownerUserId);
+        UserInfo owner = userFeignClient.getUserInfo(ownerUserId);
         if (owner == null) {
-            return;
+            throw new BizException("店主用户不存在");
         }
         if (Integer.valueOf(ROLE_MERCHANT).equals(owner.getRoleId())) {
             return;
         }
-        User patch = new User();
-        patch.setId(ownerUserId);
-        patch.setRoleId(ROLE_MERCHANT);
-        userMapper.updateById(patch);
+        userFeignClient.setMerchantRole(ownerUserId);
     }
 }

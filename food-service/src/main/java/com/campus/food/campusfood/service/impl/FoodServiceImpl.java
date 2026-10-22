@@ -2,11 +2,11 @@ package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.entity.FoodCategory;
 import com.campus.food.campusfood.entity.FoodItem;
-import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
+import com.campus.food.campusfood.feign.UserFeignClient;
+import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodCategoryMapper;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
-import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.service.FoodService;
 import com.campus.food.campusfood.service.util.FoodRecommendScorer;
 import com.campus.food.campusfood.util.TagTextUtil;
@@ -53,7 +53,7 @@ public class FoodServiceImpl implements FoodService {
     private FoodItemMapper foodItemMapper;
 
     @Autowired
-    private UserMapper userMapper;
+    private UserFeignClient userFeignClient;
 
     /**
      * {@inheritDoc}
@@ -155,8 +155,8 @@ public class FoodServiceImpl implements FoodService {
         if (userId == null) {
             throw new BizException("请先登录后再获取推荐");
         }
-        User user = userMapper.selectById(userId);
-        if (user == null || (user.getDeleted() != null && user.getDeleted() != 0)) {
+        UserInfo user = userFeignClient.getUserInfo(userId);
+        if (user == null) {
             throw new BizException("用户不存在");
         }
         // 没有口味偏好就无法个性化，直接提示完善
