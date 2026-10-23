@@ -22,6 +22,7 @@
         <module>user-service</module>
         <module>food-service</module>
         <module>merchant-service</module>
+        <module>social-service</module>
     </modules>
 
     <properties>

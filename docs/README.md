@@ -30,5 +30,7 @@
 
 ## 本地默认地址
 
-- 后端：`http://localhost:8080`（未改 `application.yml` 端口时）
-- 数据库：`campus_food`（见 `src/main/resources/application.yml`）
+- 对外 API（Gateway）：`http://localhost:8080`
+- Eureka：`http://localhost:8761`
+- 各微服务直连：user **8081**、food **8082**、merchant **8083**、social **8084**（详见仓库根 [README.md](../README.md)）
+- 数据库：`campus_food`（见各服务 `*/src/main/resources/application.yml`）

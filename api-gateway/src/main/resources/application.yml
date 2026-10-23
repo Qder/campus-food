@@ -21,6 +21,10 @@ spring:
               uri: lb://merchant-service
               predicates:
                 - Path=/merchant/**,/admin/**
+            - id: social-service
+              uri: lb://social-service
+              predicates:
+                - Path=/social/**
 
 eureka:
   client:
