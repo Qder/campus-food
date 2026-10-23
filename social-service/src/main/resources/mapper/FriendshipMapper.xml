@@ -50,4 +50,14 @@
         FROM friendship
     </select>
 
+    <select id="selectByUserIdAndFriendId" parameterType="java.util.Map" resultType="int">
+        SELECT COUNT(*)
+        FROM friendship
+        WHERE user_id = #{userId} AND friend_id = #{friendId}
+    </select>
+
+    <delete id="deletePair" parameterType="java.util.Map">
+        DELETE FROM friendship
+        WHERE user_id = #{userId} AND friend_id = #{friendId}
+    </delete>
 </mapper>

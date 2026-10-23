@@ -16,4 +16,6 @@ public interface UserFeedPostService {
     List<UserFeedPost> selectByUserId(Long userId);
 
     List<UserFeedPost> selectAll();
+
+    List<UserFeedPost> selectByIds(List<Long> ids);
 }

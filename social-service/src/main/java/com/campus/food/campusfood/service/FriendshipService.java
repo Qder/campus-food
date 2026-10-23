@@ -16,4 +16,8 @@ public interface FriendshipService {
     List<Friendship> selectByUserId(Long userId);
 
     List<Friendship> selectAll();
+
+    boolean selectByUserIdAndFriendId(Long userId, Long friendId);
+
+    int deletePair(Long userId, Long friendId);
 }

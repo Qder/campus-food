@@ -3,6 +3,7 @@ package com.campus.food.campusfood.service.impl;
 import com.campus.food.campusfood.entity.FriendRequest;
 import com.campus.food.campusfood.mapper.FriendRequestMapper;
 import com.campus.food.campusfood.service.FriendRequestService;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -44,4 +45,21 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     public List<FriendRequest> selectAll() {
         return friendRequestMapper.selectAll();
     }
+
+    @Override
+    public List<FriendRequest> selectInbox(Long touserId, Integer status) {
+        return friendRequestMapper.selectInbox(touserId, status);
+    }
+
+    @Override
+    public boolean selectPending( Long fromUserId,  Long toUserId) {
+        int rows = friendRequestMapper.selectPending(fromUserId, toUserId);
+        if(rows > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
 }

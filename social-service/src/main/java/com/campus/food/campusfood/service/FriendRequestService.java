@@ -16,4 +16,8 @@ public interface FriendRequestService {
     List<FriendRequest> selectByUserId(Long userId);
 
     List<FriendRequest> selectAll();
+
+    List<FriendRequest> selectInbox(Long touserId, Integer status);
+
+    boolean selectPending(Long fromuserId, Long touserId);
 }

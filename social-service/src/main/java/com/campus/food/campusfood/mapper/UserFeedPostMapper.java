@@ -1,6 +1,9 @@
 package com.campus.food.campusfood.mapper;
 
 import com.campus.food.campusfood.entity.UserFeedPost;
+
+import feign.Param;
+
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -13,4 +16,6 @@ public interface UserFeedPostMapper {
     UserFeedPost selectById(Long id);
     List<UserFeedPost> selectByUserId(Long userId);
     List<UserFeedPost> selectAll();
+
+    List<UserFeedPost> selectByIds(@Param("ids") List<Long> ids);
 }

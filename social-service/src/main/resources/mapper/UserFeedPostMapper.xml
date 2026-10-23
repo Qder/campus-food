@@ -53,4 +53,15 @@
         ORDER BY created_at DESC, id DESC
     </select>
 
+    <select id="selectByIds" parameterType="java.util.List"
+            resultType="com.campus.food.campusfood.entity.UserFeedPost">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_feed_post
+        WHERE id IN
+        <foreach collection="ids" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+    </select>
+    
 </mapper>

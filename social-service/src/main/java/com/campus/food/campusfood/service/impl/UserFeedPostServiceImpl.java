@@ -5,6 +5,7 @@ import com.campus.food.campusfood.mapper.UserFeedPostMapper;
 import com.campus.food.campusfood.service.UserFeedPostService;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -43,5 +44,13 @@ public class UserFeedPostServiceImpl implements UserFeedPostService {
     @Override
     public List<UserFeedPost> selectAll() {
         return userFeedPostMapper.selectAll();
+    }
+
+    @Override
+    public List<UserFeedPost> selectByIds(List<Long> ids) {
+        if(ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return userFeedPostMapper.selectByIds(ids);
     }
 }

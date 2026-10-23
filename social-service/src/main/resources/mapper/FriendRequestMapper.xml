@@ -53,4 +53,16 @@
         FROM friend_request
     </select>
 
+    <select id="selectPending" parameterType="java.util.Map" resultType="int">
+        SELECT COUNT(*)
+        FROM friend_request 
+        WHERE from_user_id = #{fromUserId} AND to_user_id = #{toUserId} AND status=0
+    </select>
+
+    <select id="selectInbox" parameterType="java.util.Map" resultType="com.campus.food.campusfood.entity.FriendRequest">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM friend_request
+        WHERE to_user_id = #{toUserId} AND status = 0
+    </select>
 </mapper>

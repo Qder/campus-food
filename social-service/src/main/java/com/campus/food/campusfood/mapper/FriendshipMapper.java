@@ -1,6 +1,8 @@
 package com.campus.food.campusfood.mapper;
 
 import com.campus.food.campusfood.entity.Friendship;
+
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -13,4 +15,6 @@ public interface FriendshipMapper {
     Friendship selectById(Long id);
     List<Friendship> selectByUserId(Long userId);
     List<Friendship> selectAll();
+    int selectByUserIdAndFriendId(@Param("userId") Long userId, @Param("friendId") Long friendId);
+    int deletePair(@Param("userId") Long userId, @Param("friendId") Long friendId);
 }
