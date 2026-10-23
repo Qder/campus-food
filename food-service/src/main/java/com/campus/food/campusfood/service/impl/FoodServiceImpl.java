@@ -31,8 +31,9 @@ import java.util.Set;
 /**
  * 美食浏览与推荐实现。
  *
- * <p>
- * 推荐走课设规则打分：由 {@link FoodRecommendScorer} 加权后排序，并用 {@link TagTextUtil} 过滤忌口。
+ * <p>列表与搜索采用 Redis Cache-Aside；登录用户查看详情时写入浏览历史 List。
+ * 推荐走课设规则打分：由 {@link FoodRecommendScorer} 加权后排序，并用 {@link TagTextUtil} 过滤忌口；
+ * 用户口味通过 {@link UserFeignClient} 从 user-service 拉取。
  *
  * @author yang
  * @since 2026-10-16
@@ -50,6 +51,12 @@ public class FoodServiceImpl implements FoodService {
     private static final int DEFAULT_RECOMMEND_LIMIT = 10;
     /** 候选池上限，课设体量内全量打分后再截断 TopN */
     private static final int RECOMMEND_CANDIDATE_CAP = 200;
+    /** 无关键词列表缓存 TTL，单位：分钟 */
+    private static final int HOT_LIST_CACHE_MINUTES = 10;
+    /** 关键词搜索缓存 TTL，单位：分钟 */
+    private static final int SEARCH_CACHE_MINUTES = 5;
+    /** 单用户浏览历史 List 最大保留条数（含本次写入后 trim 的下标上界） */
+    private static final int BROWSE_HISTORY_MAX = 50;
 
     @Autowired
     private FoodCategoryMapper foodCategoryMapper;
@@ -105,7 +112,12 @@ public class FoodServiceImpl implements FoodService {
         return roots;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Cache-Aside：先读 Redis（热门 key 或搜索 key），未命中再查库；{@code total > 0} 时回填缓存。
+     * Redis 异常时降级为直查 MySQL，不影响接口可用性。空白关键词入参视为非法搜索条件。
+     */
     @Override
     public PageVO<FoodItemVO> listFoods(Integer categoryId, String campusArea, String keyword,
             Integer page, Integer size) {
@@ -153,8 +165,8 @@ public class FoodServiceImpl implements FoodService {
             try {
                 // 设置缓存过期时间，有关键词的缓存时间更短
                 java.time.Duration ttl = (key == null)
-                        ? java.time.Duration.ofMinutes(10)
-                        : java.time.Duration.ofMinutes(5);
+                        ? java.time.Duration.ofMinutes(HOT_LIST_CACHE_MINUTES)
+                        : java.time.Duration.ofMinutes(SEARCH_CACHE_MINUTES);
                 // 缓存写入（回填 Redis）
                 stringRedisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(vo), ttl);
             } catch (Exception ignored) {
@@ -164,7 +176,12 @@ public class FoodServiceImpl implements FoodService {
         return vo;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>已登录时异步副作用：{@code LPUSH} + {@code LTRIM} 记录浏览历史，key 为 {@code food:browse:{userId}}。
+     * Redis 失败仍返回详情，不因写历史失败阻断主流程。
+     */
     @Override
     public FoodItemVO getById(Long id) {
         if (id == null) {
@@ -186,7 +203,7 @@ public class FoodServiceImpl implements FoodService {
                 // 将美食id添加到redis列表中
                 stringRedisTemplate.opsForList().leftPush(browseKey, String.valueOf(id));
                 // 修剪列表，只保留前50条记录，防止列表过大
-                stringRedisTemplate.opsForList().trim(browseKey, 0, 49);
+                stringRedisTemplate.opsForList().trim(browseKey, 0, BROWSE_HISTORY_MAX - 1);
             } catch (Exception ignored) {
                 // Redis 挂了就走下面哪一步使用数据库查询数据
             }
@@ -194,7 +211,11 @@ public class FoodServiceImpl implements FoodService {
         return vo;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>从候选池打分排序；口味为空则无法个性化。Feign 返回 null 时按用户不存在处理。
+     */
     @Override
     public List<FoodRecommendVO> recommend(Long userId, Integer limit) {
         int topN = limit == null || limit < 1 ? DEFAULT_RECOMMEND_LIMIT : Math.min(limit, MAX_SIZE);

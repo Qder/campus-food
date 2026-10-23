@@ -25,9 +25,11 @@ public interface FoodService {
     /**
      * 上架美食分页，可按分类、区域、关键词筛选。
      *
+     * <p>实现侧对无关键词列表、关键词搜索结果做 Redis Cache-Aside 缓存。
+     *
      * @param categoryId 分类 ID，可为 null
      * @param campusArea 校区/区域，可为 null
-     * @param keyword    关键词，可为 null；传入空白串会抛异常
+     * @param keyword    关键词，可为 null；传入仅空白字符的串会抛异常
      * @param page       页码，可为 null，默认 1
      * @param size       每页条数，可为 null，默认 10，最大 50
      * @return 上架美食分页结果
@@ -39,6 +41,8 @@ public interface FoodService {
     /**
      * 上架美食详情。
      *
+     * <p>已登录用户成功查看时，实现侧会写入 Redis 浏览历史 List（课设要求）。
+     *
      * @param id 美食 ID
      * @return 美食详情
      * @throws com.campus.food.campusfood.exception.BizException 美食不存在或未上架时
@@ -47,6 +51,8 @@ public interface FoodService {
 
     /**
      * 规则推荐：须登录且已设置口味；加权排序并过滤忌口。
+     *
+     * <p>用户口味与忌口通过 user-service 内部接口获取。
      *
      * @param userId 当前用户，不可为 null
      * @param limit  返回条数，默认 10，最大 50

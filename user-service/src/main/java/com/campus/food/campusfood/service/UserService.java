@@ -30,12 +30,19 @@ public interface UserService {
     UserProfileVO updateCurrentProfile(UpdateProfileDTO dto);
 
     /**
-     * 根据用户ID获取用户信息
+     * 按 ID 查询内部调用用的用户摘要（Feign / 推荐等）。
      *
-     * @param id 用户ID
-     * @return 用户信息
+     * @param id 用户主键，不可为 null
+     * @return 不含密码的 {@link UserInfo}
+     * @throws com.campus.food.campusfood.exception.BizException 用户不存在或已删除时
      */
     UserInfo getUserInfo(Long id);
 
+    /**
+     * 将用户角色设为商家（入驻审核通过后调用）。
+     *
+     * @param id 用户主键，不可为 null
+     * @throws com.campus.food.campusfood.exception.BizException 用户不存在或更新失败时
+     */
     void setMerchantRole(Long id);
 }

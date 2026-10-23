@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserServiceImpl implements UserService {
 
+    /** 库表商家角色 ID，与权限设计一致 */
     private static final Integer ROLE_MERCHANT = 2;
+
     @Autowired
     private UserMapper userMapper;
 
@@ -172,6 +174,9 @@ public class UserServiceImpl implements UserService {
         return vo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public UserInfo getUserInfo(Long id) {
         User user = userMapper.selectById(id);
@@ -188,6 +193,9 @@ public class UserServiceImpl implements UserService {
         return userInfo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void setMerchantRole(Long id) {
         User user = new User();
