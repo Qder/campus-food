@@ -12,7 +12,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * @since 2026-10-23
  */
 @SpringBootApplication(scanBasePackages = "com.campus.food")
-@MapperScan({"com.campus.food.campusfood.mapper", "com.campus.food.social.mapper"})
+@MapperScan({"com.campus.food.campusfood.mapper"})
 @EnableFeignClients(basePackages = "com.campus.food.campusfood.feign")
 public class SocialServiceApplication {
 

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.FriendshipMapper">
+
+    <sql id="Base_Column_List">
+        id, user_id, friend_id, remark, created_at
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.Friendship"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO friendship (user_id, friend_id, remark)
+        VALUES (#{userId}, #{friendId}, #{remark})
+    </insert>
+
+    <update id="update" parameterType="com.campus.food.campusfood.entity.Friendship">
+        UPDATE friendship
+        <set>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="friendId != null">friend_id = #{friendId},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete" parameterType="java.lang.Long">
+        DELETE FROM friendship
+        WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" parameterType="java.lang.Long"
+            resultType="com.campus.food.campusfood.entity.Friendship">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM friendship
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserId" parameterType="java.lang.Long"
+            resultType="com.campus.food.campusfood.entity.Friendship">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM friendship
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectAll" resultType="com.campus.food.campusfood.entity.Friendship">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM friendship
+    </select>
+
+</mapper>
