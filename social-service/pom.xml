@@ -55,6 +55,11 @@
             <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- MongoDB：聊天消息正文，会话元数据与消息索引仍在 MySQL -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

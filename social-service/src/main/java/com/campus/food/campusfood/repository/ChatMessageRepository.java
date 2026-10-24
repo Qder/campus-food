@@ -1,0 +1,26 @@
+package com.campus.food.campusfood.repository;
+
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import com.campus.food.campusfood.entity.ChatMessage;
+
+/**
+ * {@code chat_message} 集合的仓储，方法名由 Spring Data 解析成查询。
+ *
+ * @author yang
+ * @since 2026-10-24
+ */
+public interface ChatMessageRepository extends MongoRepository<ChatMessage, String> {
+
+    /**
+     * 按会话取消息，发送时间倒序分页。
+     *
+     * @param sessionId 会话 ID
+     * @param pageable  分页参数
+     * @return 消息列表；无数据返回空列表
+     */
+    List<ChatMessage> findBySessionIdOrderByCreatedAtDesc(Long sessionId, Pageable pageable);
+}

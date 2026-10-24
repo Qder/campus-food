@@ -4,6 +4,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
  * 社交服务入口：好友、Feed 等（骨架阶段仅探活接口）。
@@ -13,6 +14,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = "com.campus.food")
 @MapperScan({"com.campus.food.campusfood.mapper"})
+@EnableMongoRepositories(basePackages = "com.campus.food.campusfood.repository")
 @EnableFeignClients(basePackages = "com.campus.food.campusfood.feign")
 public class SocialServiceApplication {
 

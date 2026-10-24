@@ -17,6 +17,13 @@ spring:
     redis:
       host: localhost
       port: 6379
+    mongodb:
+      # 打开后启动时按实体上的 @CompoundIndex 建索引，默认 false
+      auto-index-creation: true
+  # 聊天消息正文；会话与消息索引仍走 MySQL 的 campus_food 库
+  # Spring Boot 4.x 起连接属性根从 spring.data.mongodb 迁到 spring.mongodb
+  mongodb:
+    uri: mongodb://localhost:27017/campus_food_chat
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
