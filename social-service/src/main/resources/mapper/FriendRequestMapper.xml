@@ -63,6 +63,9 @@
         SELECT
         <include refid="Base_Column_List"/>
         FROM friend_request
-        WHERE to_user_id = #{toUserId} AND status = 0
+        WHERE to_user_id = #{toUserId}
+        <if test="status != null">
+            AND status = #{status}
+        </if>
     </select>
 </mapper>

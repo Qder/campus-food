@@ -138,8 +138,11 @@ public class SocialServiceImpl implements SocialService {
             throw new BizException("申请ID不能为空");
         }
         Integer targetStatus = friendRequestVo.getStatus();
+        if (targetStatus == null) {
+            throw new BizException("处理结果不能为空，请传 1（同意）或 2（拒绝）");
+        }
         if (!STATUS_ACCEPTED.equals(targetStatus) && !STATUS_REJECTED.equals(targetStatus)) {
-            throw new BizException("处理结果不合法");
+            throw new BizException("status 只能传 1（同意）或 2（拒绝），当前传的是 " + targetStatus);
         }
 
         FriendRequest request = friendRequestMapper.selectById(friendRequestVo.getId());
@@ -147,7 +150,13 @@ public class SocialServiceImpl implements SocialService {
             throw new BizException("申请不存在");
         }
         if (!curId.equals(request.getToUserId())) {
-            throw new BizException("无权处理该申请");
+            // 自己发出的申请，说明是拿错了 id 或拿错了账号
+            if (curId.equals(request.getFromUserId())) {
+                throw new BizException("这是你发出的申请，需等待对方处理");
+            }
+            log.warn("处理好友申请被拒: requestId={}, 当前用户={}, 申请接收人={}",
+                    request.getId(), curId, request.getToUserId());
+            throw new BizException("该申请不是发给你的，无权处理");
         }
         if (!STATUS_PENDING.equals(request.getStatus())) {
             throw new BizException("申请已处理");
@@ -336,7 +345,14 @@ public class SocialServiceImpl implements SocialService {
         List<FriendRequest> requests = friendRequestMapper.selectInbox(curId, STATUS_PENDING);
         List<FriendRequestVo> result = new ArrayList<>();
         for (FriendRequest request : requests) {
-            result.add(toVo(request));
+            FriendRequestVo vo = toVo(request);
+            // 带上申请人昵称，收件箱就不必再按 id 反查
+            try {
+                vo.setFromNickname(loadUser(request.getFromUserId()).getNickname());
+            } catch (BizException e) {
+                log.warn("申请人信息查询失败, fromUserId={}", request.getFromUserId());
+            }
+            result.add(vo);
         }
         return result;
     }

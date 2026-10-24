@@ -21,6 +21,9 @@ public class FriendRequestVo {
     /** 申请人用户 ID */
     private Long fromUserId;
 
+    /** 申请人昵称，收件箱展示用；用户服务不可用时为空 */
+    private String fromNickname;
+
     /** 被申请人用户 ID */
     private Long toUserId;
 

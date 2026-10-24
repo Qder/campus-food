@@ -111,7 +111,7 @@ public class FriendshipServiceImpl implements FriendshipService {
             throw new BizException("未登录");
         }
         if (!curId.equals(userId)) {
-            throw new BizException("无权操作");
+            throw new BizException("只能删除自己的好友关系");
         }
 
         if (friendId == null) {
