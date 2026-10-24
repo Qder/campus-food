@@ -30,6 +30,9 @@ public class UserInfo {
     /** 逻辑删除标记：0 正常，非 0 已删除 */
     private Integer deleted;
 
+    /** 是否允许陌生人加好友：0 否，1 是，对应 {@code sys_user.privacy_add_friend} */
+    private Integer privacyAddFriend;
+
     /** 角色 ID，与库表 role_id 一致（如商家为 2） */
     private Integer roleId;
 }

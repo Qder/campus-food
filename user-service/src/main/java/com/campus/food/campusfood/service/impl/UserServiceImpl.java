@@ -190,6 +190,7 @@ public class UserServiceImpl implements UserService {
         userInfo.setDislikeIngredients(user.getDislikeIngredients());
         userInfo.setDeleted(user.getDeleted());
         userInfo.setRoleId(user.getRoleId());
+        userInfo.setPrivacyAddFriend(user.getPrivacyAddFriend());
         return userInfo;
     }
 

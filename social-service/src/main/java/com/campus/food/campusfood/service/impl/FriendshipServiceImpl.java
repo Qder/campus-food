@@ -7,6 +7,7 @@ import com.campus.food.campusfood.mapper.FriendshipMapper;
 import com.campus.food.campusfood.service.FriendshipService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -103,8 +104,12 @@ public class FriendshipServiceImpl implements FriendshipService {
      * 避免缓存已清而库仍在的不一致。
      */
     @Override
+    @Transactional
     public int deletePair(Long userId, Long friendId) {
         Long curId = UserContext.getUserId();
+        if (curId == null) {
+            throw new BizException("未登录");
+        }
         if (!curId.equals(userId)) {
             throw new BizException("无权操作");
         }
@@ -116,7 +121,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         if (curId.equals(friendId)) {
             throw new BizException("不允许把当前用户自己当作好友删除");
         }
-        
+
         if (friendshipMapper.selectByUserIdAndFriendId(userId, friendId) == 0) {
             throw new BizException("好友关系不存在");
         }
