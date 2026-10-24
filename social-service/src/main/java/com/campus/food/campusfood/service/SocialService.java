@@ -1,6 +1,9 @@
 package com.campus.food.campusfood.service;
 
+import java.util.List;
+
 import com.campus.food.campusfood.vo.FriendRequestVo;
+import com.campus.food.campusfood.vo.FriendVo;
 
 /**
  * 社交业务门面：编排好友申请、同意/拒绝与好友关系维护。
@@ -38,4 +41,33 @@ public interface SocialService {
      * @throws com.campus.food.campusfood.exception.BizException 申请不存在、无权处理或状态已变更时
      */
     FriendRequestVo handleFriendRequest(FriendRequestVo friendRequestVo);
+
+    /**
+     * 查询当前用户的好友列表。
+     *
+     * <p>逐个好友向 user-service 取昵称与头像；单个好友查不到时跳过，
+     * 不影响其余好友返回。
+     *
+     * @return 好友列表；没有好友时返回空列表
+     * @throws com.campus.food.campusfood.exception.BizException 未登录时
+     */
+    List<FriendVo> getFriends();
+
+    /**
+     * 删除好友。
+     *
+     * <p>复用 {@code FriendshipService#deletePair}，双向删除关系行并清理 Redis 关注/粉丝集合。
+     *
+     * @param friendId 好友用户 ID
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、好友 ID 为空或关系不存在时
+     */
+    void deleteFriend(Long friendId);
+
+    /**
+     * 查询当前用户收到的好友申请（收件箱）。
+     *
+     * @return 待处理申请列表；没有时返回空列表
+     * @throws com.campus.food.campusfood.exception.BizException 未登录时
+     */
+    List<FriendRequestVo> getFriendRequests();
 }

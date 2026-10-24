@@ -1,12 +1,17 @@
 package com.campus.food.campusfood.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.campus.food.campusfood.common.UserContext;
+import com.campus.food.campusfood.common.SocialRedisKeys;
 import com.campus.food.campusfood.entity.FriendRequest;
 import com.campus.food.campusfood.entity.Friendship;
 import com.campus.food.campusfood.exception.BizException;
@@ -14,8 +19,10 @@ import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FriendRequestMapper;
 import com.campus.food.campusfood.mapper.FriendshipMapper;
+import com.campus.food.campusfood.service.FriendshipService;
 import com.campus.food.campusfood.service.SocialService;
 import com.campus.food.campusfood.vo.FriendRequestVo;
+import com.campus.food.campusfood.vo.FriendVo;
 
 import feign.FeignException;
 
@@ -31,10 +38,7 @@ import feign.FeignException;
 @Service
 public class SocialServiceImpl implements SocialService {
 
-    /** 关注集合：该用户关注的好友 ID */
-    private static final String FOLLOW_KEY_PREFIX = "social:follow:";
-    /** 粉丝集合：关注该用户的人 ID */
-    private static final String FANS_KEY_PREFIX = "social:fans:";
+    private static final Logger log = LoggerFactory.getLogger(SocialServiceImpl.class);
 
     /** 申请状态：待处理 */
     private static final Integer STATUS_PENDING = 0;
@@ -43,10 +47,14 @@ public class SocialServiceImpl implements SocialService {
     /** 申请状态：已拒绝 */
     private static final Integer STATUS_REJECTED = 2;
 
+    /** 留言最大长度，与 {@code friend_request.message VARCHAR(255)} 对齐 */
+    private static final int MESSAGE_MAX_LENGTH = 255;
+
     private final FriendRequestMapper friendRequestMapper;
     private final FriendshipMapper friendshipMapper;
     private final UserFeignClient userFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final FriendshipService friendshipService;
 
     /**
      * 构造注入 Mapper、Feign 客户端与 Redis 模板。
@@ -55,22 +63,25 @@ public class SocialServiceImpl implements SocialService {
      * @param friendshipMapper     好友关系 Mapper
      * @param userFeignClient      用户服务内部接口
      * @param stringRedisTemplate  Redis 字符串模板
+     * @param friendshipService    好友关系服务，删除好友时复用其双向删除与 Redis 清理
      */
     public SocialServiceImpl(FriendRequestMapper friendRequestMapper,
                              FriendshipMapper friendshipMapper,
                              UserFeignClient userFeignClient,
-                             StringRedisTemplate stringRedisTemplate) {
+                             StringRedisTemplate stringRedisTemplate,
+                             FriendshipService friendshipService) {
         this.friendRequestMapper = friendRequestMapper;
         this.friendshipMapper = friendshipMapper;
         this.userFeignClient = userFeignClient;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.friendshipService = friendshipService;
     }
 
     /**
      * {@inheritDoc}
      *
      * <p>申请人一律取 {@link UserContext}，入参中的 {@code fromUserId} 被忽略；
-     * 申请状态由服务端置为待处理。
+     * 申请状态由服务端置为待处理，留言去空白并截断到列宽。
      */
     @Override
     public FriendRequestVo sendFriendRequest(FriendRequestVo friendRequestVo) {
@@ -95,15 +106,17 @@ public class SocialServiceImpl implements SocialService {
             throw new BizException("已经是好友");
         }
         // 任一方向存在待处理申请都不再新建，避免同一条关系反复申请
-        if (friendRequestMapper.selectPending(curId, toUserId) > 0
-                || friendRequestMapper.selectPending(toUserId, curId) > 0) {
-            throw new BizException("已有待处理的申请");
+        if (friendRequestMapper.selectPending(curId, toUserId) > 0) {
+            throw new BizException("已申请过，请等待对方处理");
+        }
+        if (friendRequestMapper.selectPending(toUserId, curId) > 0) {
+            throw new BizException("对方已向你发送申请，请先在申请列表中处理");
         }
 
         FriendRequest request = new FriendRequest();
         request.setFromUserId(curId);
         request.setToUserId(toUserId);
-        request.setMessage(friendRequestVo.getMessage());
+        request.setMessage(normalizeMessage(friendRequestVo.getMessage()));
         request.setStatus(STATUS_PENDING);
         friendRequestMapper.insert(request);
 
@@ -113,8 +126,9 @@ public class SocialServiceImpl implements SocialService {
     /**
      * {@inheritDoc}
      *
-     * <p>先落库再写 Redis；库写失败由事务回滚，Redis 失败只记日志，
-     * 后续读取以数据库为准。
+     * <p>只有被申请人本人可以处理，且申请必须仍处于待处理状态；
+     * 同意时先建双向关系再回填状态，两者同事务，任一步失败整体回滚。
+     * Redis 关注集合在库写成功后才更新，失败只记日志并以库为准。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -145,6 +159,7 @@ public class SocialServiceImpl implements SocialService {
 
         request.setStatus(targetStatus);
         request.setHandledAt(LocalDateTime.now());
+        // update 会按主键覆盖状态，此时只有一条待处理记录会走到这里
         friendRequestMapper.update(request);
 
         return toVo(friendRequestMapper.selectById(request.getId()));
@@ -157,24 +172,34 @@ public class SocialServiceImpl implements SocialService {
      * @param toUserId   同意人
      */
     private void addFriendPair(Long fromUserId, Long toUserId) {
-        // 已有关系时只补推导结果，避免唯一键冲突
+        // 已有关系时只补推导结果，避免唯一键 uk_friendship 冲突
         if (friendshipMapper.selectByUserIdAndFriendId(fromUserId, toUserId) == 0) {
             friendshipMapper.insert(buildFriendship(fromUserId, toUserId));
         }
         if (friendshipMapper.selectByUserIdAndFriendId(toUserId, fromUserId) == 0) {
             friendshipMapper.insert(buildFriendship(toUserId, fromUserId));
         }
+        syncFollowCache(fromUserId, toUserId);
+    }
+
+    /**
+     * 把双向关注关系写入 Redis Set：A 关注 B、B 关注 A，同时互为粉丝。
+     *
+     * @param fromUserId 申请人
+     * @param toUserId   同意人
+     */
+    private void syncFollowCache(Long fromUserId, Long toUserId) {
+        String from = String.valueOf(fromUserId);
+        String to = String.valueOf(toUserId);
         try {
-            stringRedisTemplate.opsForSet()
-                    .add(FOLLOW_KEY_PREFIX + fromUserId, String.valueOf(toUserId));
-            stringRedisTemplate.opsForSet()
-                    .add(FANS_KEY_PREFIX + toUserId, String.valueOf(fromUserId));
-            stringRedisTemplate.opsForSet()
-                    .add(FOLLOW_KEY_PREFIX + toUserId, String.valueOf(fromUserId));
-            stringRedisTemplate.opsForSet()
-                    .add(FANS_KEY_PREFIX + fromUserId, String.valueOf(toUserId));
-        } catch (Exception ignored) {
-            // Redis 不可用时忽略，读取时回源数据库
+            // 将fromUserId关注toUserId，将toUserId关注fromUserId，将fromUserId的粉丝列表中添加toUserId，将toUserId的粉丝列表中添加fromUserId
+            stringRedisTemplate.opsForSet().add(SocialRedisKeys.follow(fromUserId), to);
+            stringRedisTemplate.opsForSet().add(SocialRedisKeys.fans(toUserId), from);
+            stringRedisTemplate.opsForSet().add(SocialRedisKeys.follow(toUserId), from);
+            stringRedisTemplate.opsForSet().add(SocialRedisKeys.fans(fromUserId), to);
+        } catch (Exception e) {
+            // Redis 不可用不影响好友关系成立，读取时回源数据库重建
+            log.warn("同意好友申请后同步关注集合失败, from={}, to={}", fromUserId, toUserId, e);
         }
     }
 
@@ -207,6 +232,23 @@ public class SocialServiceImpl implements SocialService {
     }
 
     /**
+     * 去掉留言首尾空白，空串归一为 null，超长按 {@code message VARCHAR(255)} 截断。
+     *
+     * @param message 原始留言，可为 null
+     * @return 可直接落库的留言
+     */
+    private String normalizeMessage(String message) {
+        if (message == null) {
+            return null;
+        }
+        String text = message.trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        return text.length() > MESSAGE_MAX_LENGTH ? text.substring(0, MESSAGE_MAX_LENGTH) : text;
+    }
+
+    /**
      * 通过 user-service 查询用户摘要。
      *
      * @param userId 用户 ID
@@ -221,6 +263,7 @@ public class SocialServiceImpl implements SocialService {
             // user-service 对不存在用户返回 400，统一转成业务提示
             throw new BizException("用户不存在");
         }
+        // 熔断降级返回 null，与「用户不存在」对上层是同一结果
         if (user == null || user.getId() == null) {
             throw new BizException("用户不存在");
         }
@@ -245,6 +288,70 @@ public class SocialServiceImpl implements SocialService {
         vo.setStatus(request.getStatus());
         vo.setCreatedAt(request.getCreatedAt());
         vo.setHandledAt(request.getHandledAt());
+        return vo;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>逐个好友调 user-service 查昵称与头像，单个好友查不到时跳过，
+     * 不让一条坏数据把整个列表打成 500。
+     */
+    @Override
+    public List<FriendVo> getFriends() {
+        Long curId = requireCurUserId();
+        List<Friendship> friendships = friendshipMapper.selectByUserId(curId);
+        List<FriendVo> friends = new ArrayList<>();
+        for (Friendship friendship : friendships) {
+            try {
+                friends.add(toFriendVo(loadUser(friendship.getFriendId())));
+            } catch (BizException e) {
+                // 好友账号已注销或用户服务瞬时不可用，跳过该条
+                log.warn("好友信息查询失败，已跳过, friendId={}", friendship.getFriendId());
+            }
+        }
+        return friends;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void deleteFriend(Long friendId) {
+        Long curId = requireCurUserId();
+        if (friendId == null) {
+            throw new BizException("好友ID不能为空");
+        }
+        friendshipService.deletePair(curId, friendId);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>只返回待处理（{@code status=0}）的申请，已同意/已拒绝的不再出现在收件箱。
+     */
+    @Override
+    public List<FriendRequestVo> getFriendRequests() {
+        Long curId = requireCurUserId();
+        List<FriendRequest> requests = friendRequestMapper.selectInbox(curId, STATUS_PENDING);
+        List<FriendRequestVo> result = new ArrayList<>();
+        for (FriendRequest request : requests) {
+            result.add(toVo(request));
+        }
+        return result;
+    }
+
+    /**
+     * 用户摘要转好友列表项。
+     *
+     * @param user 用户摘要
+     * @return 只含展示字段的好友项
+     */
+    private FriendVo toFriendVo(UserInfo user) {
+        FriendVo vo = new FriendVo();
+        vo.setId(user.getId());
+        vo.setNickname(user.getNickname());
+        vo.setAvatarUrl(user.getAvatarUrl());
         return vo;
     }
 }

@@ -1,6 +1,10 @@
 package com.campus.food.campusfood.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,11 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.SocialService;
 import com.campus.food.campusfood.vo.FriendRequestVo;
+import com.campus.food.campusfood.vo.FriendVo;
 
 import jakarta.validation.Valid;
 
 /**
- * 社交接口：好友申请的发送与处理。均需 JWT，身份取自当前登录用户。
+ * 社交接口：好友申请、好友列表与删除。均需 JWT，身份取自当前登录用户。
  *
  * @author yang
  * @since 2026-10-23
@@ -48,5 +53,38 @@ public class SocialController {
     @PostMapping("/handleFriendRequest")
     public FriendRequestVo handleFriendRequest(@Valid @RequestBody FriendRequestVo friendRequestVo) {
         return socialService.handleFriendRequest(friendRequestVo);
+    }
+
+    /**
+     * 当前登录用户的好友列表。
+     *
+     * @return 好友项列表，只含昵称与头像
+     * @throws BizException 未登录时
+     */
+    @GetMapping("/friends")
+    public List<FriendVo> getFriends() {
+        return socialService.getFriends();
+    }
+
+    /**
+     * 当前登录用户收到的好友申请（收件箱），仅待处理。
+     *
+     * @return 待处理申请列表
+     * @throws BizException 未登录时
+     */
+    @GetMapping("/friend-requests/inbox")
+    public List<FriendRequestVo> getFriendRequests() {
+        return socialService.getFriendRequests();
+    }
+
+    /**
+     * 删除好友，双向解除关系并清理 Redis 关注集合。
+     *
+     * @param friendId 好友用户 ID
+     * @throws BizException 未登录、好友 ID 为空或关系不存在时
+     */
+    @PostMapping("/friends/{friendId}/delete")
+    public void deleteFriend(@PathVariable("friendId") Long friendId) {
+        socialService.deleteFriend(friendId);
     }
 }

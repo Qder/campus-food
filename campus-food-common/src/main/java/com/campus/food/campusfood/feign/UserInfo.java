@@ -21,6 +21,9 @@ public class UserInfo {
     /** 昵称 */
     private String nickname;
 
+    /** 头像 URL，好友列表等展示场景使用 */
+    private String avatarUrl;
+
     /** 口味标签，逗号分隔，与 {@link com.campus.food.campusfood.entity.User#tasteTags} 一致 */
     private String tasteTags;
 

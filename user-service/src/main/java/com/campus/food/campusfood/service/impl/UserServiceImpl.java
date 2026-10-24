@@ -186,6 +186,7 @@ public class UserServiceImpl implements UserService {
         UserInfo userInfo = new UserInfo();
         userInfo.setId(user.getId());
         userInfo.setNickname(user.getNickname());
+        userInfo.setAvatarUrl(user.getAvatarUrl());
         userInfo.setTasteTags(user.getTasteTags());
         userInfo.setDislikeIngredients(user.getDislikeIngredients());
         userInfo.setDeleted(user.getDeleted());
