@@ -17,23 +17,23 @@ import lombok.Data;
 public class FriendRequest {
 
     /** 申请 ID */
-    Long id;
+    private Long id;
 
     /** 申请人用户 ID */
-    Long fromUserId;
+    private Long fromUserId;
 
     /** 被申请人用户 ID */
-    Long toUserId;
+    private Long toUserId;
 
     /** 申请留言，可为空 */
-    String message;
+    private String message;
 
     /** 状态：0 待处理，1 已同意，2 已拒绝，3 已过期 */
-    Integer status;
+    private Integer status;
 
     /** 申请时间 */
-    LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
     /** 处理时间，未处理时为空 */
-    LocalDateTime handledAt;
+    private LocalDateTime handledAt;
 }

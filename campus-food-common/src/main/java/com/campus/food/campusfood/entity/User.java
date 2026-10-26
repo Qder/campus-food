@@ -61,7 +61,7 @@ public class User {
     /** 是否允许陌生人加好友：0 否，1 是 */
     private Integer privacyAddFriend;
 
-    /** 状态：0 禁用，1 正常，2 限制 */
+    /** 状态：0 禁用，1 正常 */
     private Integer status;
 
     /**

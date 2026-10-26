@@ -17,17 +17,17 @@ import lombok.Data;
 public class Friendship {
 
     /** 关系 ID */
-    Long id;
+    private Long id;
 
     /** 用户 ID */
-    Long userId;
+    private Long userId;
 
     /** 好友用户 ID */
-    Long friendId;
+    private Long friendId;
 
     /** 备注名，可为空 */
-    String remark;
+    private String remark;
 
     /** 成为好友的时间 */
-    LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 }

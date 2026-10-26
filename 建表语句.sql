@@ -35,7 +35,7 @@ CREATE TABLE sys_user (
   bio             VARCHAR(512) DEFAULT NULL COMMENT '个人简介',
   privacy_feed    TINYINT      NOT NULL DEFAULT 1 COMMENT '动态是否公开:0否1是',
   privacy_add_friend TINYINT   NOT NULL DEFAULT 1 COMMENT '是否允许陌生人加好友:0否1是',
-  status          TINYINT      NOT NULL DEFAULT 1 COMMENT '状态:0禁用1正常2限制',
+  status          TINYINT      NOT NULL DEFAULT 1 COMMENT '状态:0禁用1正常',
   role_id         TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '角色ID，对应sys_role.id，默认普通用户(USER)',
   last_login_at   DATETIME     DEFAULT NULL COMMENT '最近登录时间',
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',

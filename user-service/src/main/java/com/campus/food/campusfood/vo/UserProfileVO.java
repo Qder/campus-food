@@ -47,7 +47,7 @@ public class UserProfileVO {
     /** 角色 ID */
     private Integer roleId;
 
-    /** 账号状态：0 禁用，1 正常，2 限制 */
+    /** 账号状态：0 禁用，1 正常 */
     private Integer status;
 
     /** 喜欢的口味，逗号分隔 */

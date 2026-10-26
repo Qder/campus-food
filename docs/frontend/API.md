@@ -73,7 +73,7 @@ Base URL：`http://localhost:8080`（或通过前端代理的 `/api` 前缀）�
 | privacyFeed | number | 0/1 |
 | privacyAddFriend | number | 0/1 |
 | roleId | number | |
-| status | number | 0 禁用 1 正常 2 限制 |
+| status | number | 0 禁用 1 正常 |
 | tasteTags | string \| null | 逗号分隔，推荐必填 |
 | dislikeIngredients | string \| null | 逗号分隔忌口 |
 

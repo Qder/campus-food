@@ -27,7 +27,7 @@ public class AuthServiceImpl implements AuthService {
 
     /** 普通用户角色，对应 {@code sys_role} 种子 USER */
     private static final int ROLE_USER = 1;
-    /** 账号状态：正常，禁用或受限不能登录 */
+    /** 账号状态：1 正常；0 禁用，不能登录 */
     private static final int STATUS_NORMAL = 1;
     /** 未逻辑删除 */
     private static final int NOT_DELETED = 0;
