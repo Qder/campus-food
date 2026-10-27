@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.UserReminderMapper">
+
+    <sql id="Base_Column_List">
+        id, user_id, remind_type, channel, enabled, ref_type, ref_id, created_at, updated_at
+    </sql>
+
+    <select id="selectByUserId" resultType="com.campus.food.campusfood.entity.UserReminder">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_reminder
+        WHERE user_id = #{userId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectByUserAndType" resultType="com.campus.food.campusfood.entity.UserReminder">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_reminder
+        WHERE user_id = #{userId}
+          AND remind_type = #{remindType}
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.UserReminder"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_reminder (user_id, remind_type, channel, enabled)
+        VALUES (#{userId}, #{remindType}, #{channel}, #{enabled})
+    </insert>
+
+    <update id="updateEnabled">
+        UPDATE user_reminder
+        <set>
+            enabled = #{enabled},
+            <if test="channel != null and channel != ''">
+                channel = #{channel},
+            </if>
+        </set>
+        WHERE user_id = #{userId}
+          AND remind_type = #{remindType}
+    </update>
+
+</mapper>

@@ -3,26 +3,32 @@ package com.campus.food.campusfood.service.impl;
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.AddFavoritiesDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
+import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.entity.UserFavorities;
+import com.campus.food.campusfood.entity.UserReminder;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.UserFavoriteMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
+import com.campus.food.campusfood.mapper.UserReminderMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.enums.FoodItemStatus;
 import com.campus.food.campusfood.vo.FavoriteAddVO;
 import com.campus.food.campusfood.vo.FavoritiesVO;
 import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.RemindVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -45,6 +51,18 @@ public class UserServiceImpl implements UserService {
     /** 店铺营业中 */
     private static final int MERCHANT_STATUS_OPEN = 1;
 
+    /** 本期唯一渠道：站内信 */
+    private static final String CHANNEL_INBOX = "INBOX";
+
+    /** GET 列表固定顺序：优惠活动、好友动态、订单状态 */
+    private static final List<String> REMIND_TYPES = List.of("CAMPAIGN", "FRIEND_FEED", "ORDER");
+
+    /** 展示文案，不入库 */
+    private static final Map<String, String> REMIND_LABELS = Map.of(
+            "CAMPAIGN", "优惠活动",
+            "FRIEND_FEED", "好友动态",
+            "ORDER", "订单状态");
+
     @Autowired
     private UserMapper userMapper;
 
@@ -56,6 +74,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private MerchantMapper merchantMapper;
+
+    @Autowired
+    private UserReminderMapper userReminderMapper;
 
     /**
      * {@inheritDoc}
@@ -208,6 +229,9 @@ public class UserServiceImpl implements UserService {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * 按主键查未删除用户，拷贝 Feign 用的摘要字段，不含密码。
      */
     @Override
     public UserInfo getUserInfo(Long id) {
@@ -229,6 +253,9 @@ public class UserServiceImpl implements UserService {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * 入驻审核通过后由商家服务调用：只把 {@code roleId} 写成商家角色，其它字段不动。
      */
     @Override
     public void setMerchantRole(Long id) {
@@ -241,6 +268,12 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * {@code targetType} 为空查全部；分页默认第 1 页、每页 10 条、最大 50。
+     */
     @Override
     public PageVO<FavoritiesVO> getFavoritiesList(Integer targetType, Integer page, Integer size) {
         Long userId = UserContext.getUserId();
@@ -266,6 +299,12 @@ public class UserServiceImpl implements UserService {
         return pageVO;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 校验类型 1/2、目标上架或营业后再插入；已收藏则拒绝。
+     */
     @Override
     public FavoriteAddVO addFavorities(AddFavoritiesDTO dto) {
         Long userId = UserContext.getUserId();
@@ -313,6 +352,12 @@ public class UserServiceImpl implements UserService {
         return new FavoriteAddVO(targetType, targetId, true);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 按当前用户 + 类型 + 目标删除，删不到视为未收藏过。
+     */
     @Override
     public FavoriteAddVO deleteFavorities(DeleteFavoritiesDTO dto) {
         Long userId = UserContext.getUserId();
@@ -329,5 +374,119 @@ public class UserServiceImpl implements UserService {
             throw new BizException("未收藏过");
         }
         return new FavoriteAddVO(targetType, targetId, false);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 按 {@link #REMIND_TYPES} 逐项保证库中有行，缺则默认开启站内信。
+     */
+    @Override
+    public List<RemindVO> listReminders() {
+        Long userId = requireLoginUserId();
+        List<RemindVO> result = new ArrayList<>();
+        for (String type : REMIND_TYPES) {
+            UserReminder row = ensureReminder(userId, type, CHANNEL_INBOX, 1);
+            result.add(toRemindVo(row));
+        }
+        return result;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 只改当前用户自己的开关；{@code channel} 空则视为 {@link #CHANNEL_INBOX}。
+     */
+    @Override
+    public RemindVO updateReminder(ReminderDTO dto) {
+        Long userId = requireLoginUserId();
+        String remindType = dto.getRemindType();
+        if (remindType == null || !REMIND_LABELS.containsKey(remindType)) {
+            throw new BizException("不支持的提醒类型");
+        }
+        if (dto.getEnabled() == null) {
+            throw new BizException("是否开启不能为空");
+        }
+        String channel = dto.getChannel() == null || dto.getChannel().isBlank()
+                ? CHANNEL_INBOX
+                : dto.getChannel();
+        if (!CHANNEL_INBOX.equals(channel)) {
+            throw new BizException("不支持的提醒类型");
+        }
+        int enabled = Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0;
+        UserReminder existing = userReminderMapper.selectByUserAndType(userId, remindType);
+        if (existing == null) {
+            UserReminder row = new UserReminder();
+            row.setUserId(userId);
+            row.setRemindType(remindType);
+            row.setChannel(channel);
+            row.setEnabled(enabled);
+            int rows = userReminderMapper.insert(row);
+            if (rows <= 0) {
+                throw new BizException("更新提醒失败");
+            }
+            return toRemindVo(row);
+        }
+        int rows = userReminderMapper.updateEnabled(userId, remindType, enabled, channel);
+        if (rows <= 0) {
+            throw new BizException("更新提醒失败");
+        }
+        existing.setEnabled(enabled);
+        existing.setChannel(channel);
+        return toRemindVo(existing);
+    }
+
+    /**
+     * 从登录上下文取 userId。
+     *
+     * @return 当前用户 ID
+     * @throws BizException 未登录时
+     */
+    private Long requireLoginUserId() {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException("未登录");
+        }
+        return userId;
+    }
+
+    /**
+     * 该类型尚无记录时插入一行。
+     *
+     * @param userId     用户 ID
+     * @param remindType 提醒类型
+     * @param channel    渠道
+     * @param enabled    1 开 / 0 关
+     * @return 已有或新插入的行
+     */
+    private UserReminder ensureReminder(Long userId, String remindType, String channel, int enabled) {
+        UserReminder existing = userReminderMapper.selectByUserAndType(userId, remindType);
+        if (existing != null) {
+            return existing;
+        }
+        UserReminder row = new UserReminder();
+        row.setUserId(userId);
+        row.setRemindType(remindType);
+        row.setChannel(channel);
+        row.setEnabled(enabled);
+        userReminderMapper.insert(row);
+        return row;
+    }
+
+    /**
+     * 实体转开关 VO；{@code label} 按类型写死，{@code enabled} 由 0/1 转布尔。
+     *
+     * @param row 库表行
+     * @return 前端开关项
+     */
+    private RemindVO toRemindVo(UserReminder row) {
+        RemindVO vo = new RemindVO();
+        vo.setRemindType(row.getRemindType());
+        vo.setLabel(REMIND_LABELS.get(row.getRemindType()));
+        vo.setChannel(row.getChannel());
+        vo.setEnabled(row.getEnabled() != null && row.getEnabled() == 1);
+        return vo;
     }
 }
