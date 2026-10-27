@@ -1,8 +1,9 @@
 package com.campus.food.campusfood.mapper;
 
-import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
+import com.campus.food.campusfood.entity.Merchant;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -29,7 +30,7 @@ public interface MerchantMapper {
      * @param id 店铺 ID
      * @return 店铺；不存在返回 null
      */
-    Merchant selectById(Long id);
+    Merchant selectById(@Param("id") Long id);
 
     /**
      * 查询审核通过且营业中的未删除店铺。待审或停业的店不出现在这份列表里。
@@ -52,7 +53,7 @@ public interface MerchantMapper {
      * @param id 店铺 ID
      * @return 影响行数
      */
-    int deleteById(Long id);
+    int deleteById(@Param("id") Long id);
 
     /**
      * 按名称、地址、审核状态、经营状态查询未删除店铺。
@@ -68,5 +69,5 @@ public interface MerchantMapper {
      * @param ownerUserId 店主用户 ID
      * @return 店铺列表；无数据返回空列表
      */
-    List<Merchant> selectByOwnerUserId(Long ownerUserId);
+    List<Merchant> selectByOwnerUserId(@Param("ownerUserId") Long ownerUserId);
 }

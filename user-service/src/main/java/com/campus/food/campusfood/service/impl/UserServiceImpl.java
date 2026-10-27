@@ -1,14 +1,29 @@
 package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.common.UserContext;
+import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
+import com.campus.food.campusfood.entity.FoodItem;
+import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
+import com.campus.food.campusfood.entity.UserFavorities;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
+import com.campus.food.campusfood.mapper.FoodItemMapper;
+import com.campus.food.campusfood.mapper.MerchantMapper;
+import com.campus.food.campusfood.mapper.UserFavoriteMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
+import com.campus.food.campusfood.enums.FoodItemStatus;
+import com.campus.food.campusfood.vo.FavoriteAddVO;
+import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
+
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,13 +39,29 @@ public class UserServiceImpl implements UserService {
     /** 库表商家角色 ID，与权限设计一致 */
     private static final Integer ROLE_MERCHANT = 2;
 
+    /** 店铺审核通过 */
+    private static final int MERCHANT_AUDIT_APPROVED = 1;
+
+    /** 店铺营业中 */
+    private static final int MERCHANT_STATUS_OPEN = 1;
+
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private UserFavoriteMapper userFavoriteMapper;
+
+    @Autowired
+    private FoodItemMapper foodItemMapper;
+
+    @Autowired
+    private MerchantMapper merchantMapper;
 
     /**
      * {@inheritDoc}
      *
-     * <p>从 {@link UserContext} 取 userId 后查询。
+     * <p>
+     * 从 {@link UserContext} 取 userId 后查询。
      */
     @Override
     public UserProfileVO getCurrentProfile() {
@@ -40,7 +71,8 @@ public class UserServiceImpl implements UserService {
     /**
      * {@inheritDoc}
      *
-     * <p>采用动态更新：只把 DTO 中非 null 的字段写进 patch。
+     * <p>
+     * 采用动态更新：只把 DTO 中非 null 的字段写进 patch。
      */
     @Override
     public UserProfileVO updateCurrentProfile(UpdateProfileDTO dto) {
@@ -207,5 +239,95 @@ public class UserServiceImpl implements UserService {
         if (rows <= 0) {
             throw new BizException("设置用户角色失败");
         }
+    }
+
+    @Override
+    public PageVO<FavoritiesVO> getFavoritiesList(Integer targetType, Integer page, Integer size) {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException("未登录");
+        }
+
+        if (targetType != null && targetType != 1 && targetType != 2) {
+            throw new BizException("目标类型不合法");
+        }
+        // targetType传入为null时，默认查询所有类型
+        int p = page == null || page < 1 ? 1 : page;
+        int s = size == null || size < 1 ? 10 : Math.min(size, 50);
+        int total = userFavoriteMapper.countByUser(userId, targetType);
+        List<FavoritiesVO> list = total == 0
+                ? List.of()
+                : userFavoriteMapper.selectPageByUser(userId, targetType, (p - 1) * s, s);
+        PageVO<FavoritiesVO> pageVO = new PageVO<>();
+        pageVO.setTotal(total);
+        pageVO.setSize(s);
+        pageVO.setPage(p);
+        pageVO.setList(list);
+        return pageVO;
+    }
+
+    @Override
+    public FavoriteAddVO addFavorities(AddFavoritiesDTO dto) {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException("未登录");
+        }
+        Integer targetType = dto.getTargetType();
+        Long targetId = dto.getTargetId();
+        if (targetType == null || (targetType != 1 && targetType != 2) || targetId == null) {
+            throw new BizException("目标类型不合法");
+        }
+        if (targetType == 1) {
+            FoodItem foodItem = foodItemMapper.selectById(targetId);
+            if (foodItem == null) {
+                throw new BizException("该美食不存在");
+            }
+            if (foodItem.getStatus() == null
+                    || foodItem.getStatus() != FoodItemStatus.ON_SHELF.getCode()) {
+                throw new BizException("该美食已下架");
+            }
+        } else {
+            Merchant merchant = merchantMapper.selectById(targetId);
+            if (merchant == null) {
+                throw new BizException("该店铺不存在");
+            }
+            if (!Integer.valueOf(MERCHANT_AUDIT_APPROVED).equals(merchant.getAuditStatus())
+                    || !Integer.valueOf(MERCHANT_STATUS_OPEN).equals(merchant.getStatus())) {
+                throw new BizException("该店铺已下架");
+            }
+        }
+
+        if (userFavoriteMapper.countByUk(userId, targetType, targetId) > 0) {
+            throw new BizException("已经收藏过了");
+        }
+
+        UserFavorities userFavorities = new UserFavorities();
+        userFavorities.setUserId(userId);
+        userFavorities.setTargetType(targetType);
+        userFavorities.setTargetId(targetId);
+
+        int rows = userFavoriteMapper.insert(userFavorities);
+        if (rows <= 0) {
+            throw new BizException("添加收藏失败");
+        }
+        return new FavoriteAddVO(targetType, targetId, true);
+    }
+
+    @Override
+    public FavoriteAddVO deleteFavorities(DeleteFavoritiesDTO dto) {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException("未登录");
+        }
+        Integer targetType = dto.getTargetType();
+        Long targetId = dto.getTargetId();
+        if (targetType == null || (targetType != 1 && targetType != 2) || targetId == null) {
+            throw new BizException("目标类型不合法");
+        }
+        int rows = userFavoriteMapper.deleteByUserAndTarget(userId, targetType, targetId);
+        if (rows <= 0) {
+            throw new BizException("未收藏过");
+        }
+        return new FavoriteAddVO(targetType, targetId, false);
     }
 }

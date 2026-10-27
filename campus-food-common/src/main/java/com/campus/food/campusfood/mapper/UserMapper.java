@@ -6,11 +6,11 @@ import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 
-
 /**
  * {@code sys_user} MyBatis Mapper
  *
- * <p>常用查询键（来自 UNIQUE/INDEX，仅注释提示，不自动生成方法）：
+ * <p>
+ * 常用查询键（来自 UNIQUE/INDEX，仅注释提示，不自动生成方法）：
  * - UNIQUE PRIMARY: id → 建议 selectById
  * - UNIQUE uk_user_phone: phone → 建议 selectByPhone
  * - UNIQUE uk_user_email: email → 建议 selectByEmail

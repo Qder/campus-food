@@ -9,7 +9,7 @@
     </parent>
     <artifactId>campus-food-common</artifactId>
     <name>campus-food-common</name>
-    <description>JWT、异常、拦截器，以及多服务共用的用户/菜品/评价 Mapper</description>
+    <description>JWT、异常、拦截器，以及多服务共用的用户/菜品/店铺/评价 Mapper</description>
 
     <dependencies>
         <dependency>

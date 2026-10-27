@@ -1,7 +1,12 @@
 package com.campus.food.campusfood.service;
 
+import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.feign.UserInfo;
+import com.campus.food.campusfood.vo.FavoriteAddVO;
+import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
 /**
@@ -45,4 +50,10 @@ public interface UserService {
      * @throws com.campus.food.campusfood.exception.BizException 用户不存在或更新失败时
      */
     void setMerchantRole(Long id);
+
+    PageVO<FavoritiesVO> getFavoritiesList(Integer targetType, Integer page, Integer size);
+
+    FavoriteAddVO addFavorities(AddFavoritiesDTO dto);
+
+    FavoriteAddVO deleteFavorities(DeleteFavoritiesDTO dto);
 }

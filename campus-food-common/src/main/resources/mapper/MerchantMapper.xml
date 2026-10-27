@@ -26,7 +26,7 @@
           AND deleted = 0
     </update>
 
-    <select id="selectById" parameterType="long" resultType="com.campus.food.campusfood.entity.Merchant">
+    <select id="selectById" resultType="com.campus.food.campusfood.entity.Merchant">
         SELECT
         <include refid="Base_Column_List"/>
         FROM merchant

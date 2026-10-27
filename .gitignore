@@ -33,4 +33,4 @@ build/
 .vscode/
 
 ### Cursor AI 本地配置（skills 属于个人工作流，不入库）###
-.cursor/
+.cursor/skills/

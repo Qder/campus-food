@@ -2,7 +2,6 @@ package com.campus.food.campusfood.entity;
 
 import java.time.LocalDateTime;
 
-import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -67,7 +66,6 @@ public class Merchant {
 
     /**
      * 审核:0待审1通过2驳回3取消资格
-     * {@link MerchantAuditStatus} 0=待审, 1=通过, 2=驳回, 3=取消资格
      */
     private Integer auditStatus;
 

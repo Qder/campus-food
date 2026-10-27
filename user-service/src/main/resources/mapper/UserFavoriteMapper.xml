@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.UserFavoriteMapper">
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.UserFavorities"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_favorite (user_id, target_type, target_id)
+        VALUES (#{userId}, #{targetType}, #{targetId})
+    </insert>
+
+    <delete id="deleteByUserAndTarget">
+        DELETE FROM user_favorite
+        WHERE user_id = #{userId}
+          AND target_type = #{targetType}
+          AND target_id = #{targetId}
+    </delete>
+
+    <select id="countByUser" resultType="int">
+        SELECT COUNT(*)
+        FROM user_favorite
+        WHERE user_id = #{userId}
+        <if test="targetType != null">
+            AND target_type = #{targetType}
+        </if>
+    </select>
+
+    <select id="countByUk" resultType="int">
+        SELECT COUNT(*)
+        FROM user_favorite
+        WHERE user_id = #{userId}
+          AND target_type = #{targetType}
+          AND target_id = #{targetId}
+    </select>
+
+    <select id="selectPageByUser" resultType="com.campus.food.campusfood.vo.FavoritiesVO">
+        SELECT
+            f.id AS favoriteId,
+            f.target_id,
+            f.target_type,
+            f.created_at,
+            CASE
+                WHEN f.target_type = 1 AND i.id IS NOT NULL THEN i.name
+                WHEN f.target_type = 2 AND shop.id IS NOT NULL THEN shop.shop_name
+                ELSE '已失效'
+            END AS title,
+            CASE
+                WHEN f.target_type = 1 THEN CONCAT_WS(' · ', food_shop.shop_name, food_shop.campus_area)
+                WHEN f.target_type = 2 THEN shop.campus_area
+                ELSE NULL
+            END AS sub_title,
+            CASE
+                WHEN f.target_type = 1 THEN i.cover_url
+                WHEN f.target_type = 2 THEN shop.logo_url
+            END AS cover_url,
+            CASE WHEN f.target_type = 1 THEN i.price END AS price,
+            CASE WHEN f.target_type = 1 THEN i.avg_score END AS avg_score,
+            CASE
+                WHEN f.target_type = 1 THEN i.status
+                WHEN f.target_type = 2 THEN shop.status
+            END AS status
+        FROM user_favorite f
+        LEFT JOIN food_item i
+            ON f.target_type = 1 AND i.id = f.target_id
+        LEFT JOIN merchant food_shop
+            ON f.target_type = 1 AND food_shop.id = i.merchant_id
+        LEFT JOIN merchant shop
+            ON f.target_type = 2 AND shop.id = f.target_id
+        WHERE f.user_id = #{userId}
+        <if test="targetType != null">
+            AND f.target_type = #{targetType}
+        </if>
+        ORDER BY f.created_at DESC, f.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+</mapper>

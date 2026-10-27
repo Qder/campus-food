@@ -1,15 +1,24 @@
 package com.campus.food.campusfood.controller;
 
+import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.UserService;
+import com.campus.food.campusfood.vo.FavoriteAddVO;
+import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -46,5 +55,32 @@ public class UserController {
     @PutMapping("/profile")
     public UserProfileVO updateProfile(@Valid @RequestBody UpdateProfileDTO dto) {
         return userService.updateCurrentProfile(dto);
+    }
+
+    /**
+     * 当前用户收藏列表。
+     */
+    @GetMapping("/favorites")
+    public PageVO<FavoritiesVO> favoritiesList(
+            @RequestParam(required = false) Integer targetType,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return userService.getFavoritiesList(targetType, page, size);
+    }
+
+    /**
+     * 添加收藏，成功体含 {@code favorited=true}。
+     */
+    @PostMapping("/favorites")
+    public FavoriteAddVO addFavorities(@Valid @RequestBody AddFavoritiesDTO dto) {
+        return userService.addFavorities(dto);
+    }
+
+    /**
+     * 取消收藏，成功体含 {@code favorited=false}。
+     */
+    @DeleteMapping("/favorites")
+    public FavoriteAddVO deleteFavorities(@Valid @RequestBody DeleteFavoritiesDTO dto) {
+        return userService.deleteFavorities(dto);
     }
 }
