@@ -7,7 +7,8 @@ import lombok.Data;
 /**
  * 用户美食动态（Feed 正文），对应表 {@code user_feed_post}。
  *
- * <p>只持久化动态本身，时间线由 Redis ZSet 维护，两者通过动态 ID 关联。
+ * <p>
+ * 只持久化动态本身，时间线由 Redis ZSet 维护，两者通过动态 ID 关联。
  *
  * @author yang
  * @since 2026-10-23
@@ -32,4 +33,10 @@ public class UserFeedPost {
 
     /** 图片 URL，多个用英文逗号分隔，可为空 */
     private String imageUrls;
+
+    /** 隐私：0 仅自己可见 / 1 公开，默认 1 */
+    private Integer privacy;
+
+    /** 点赞数 */
+    private Integer likeCount;
 }

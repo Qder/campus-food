@@ -2,6 +2,7 @@ package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.AddFeedDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
@@ -9,12 +10,14 @@ import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.entity.UserFavorities;
+import com.campus.food.campusfood.entity.UserFeedPost;
 import com.campus.food.campusfood.entity.UserReminder;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.UserFavoriteMapper;
+import com.campus.food.campusfood.mapper.UserFeedPostMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
 import com.campus.food.campusfood.mapper.UserReminderMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
@@ -22,6 +25,8 @@ import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.enums.FoodItemStatus;
 import com.campus.food.campusfood.vo.FavoriteAddVO;
 import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.FeedPublishVO;
+import com.campus.food.campusfood.vo.FeedVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
@@ -77,6 +82,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserReminderMapper userReminderMapper;
+
+    @Autowired
+    private UserFeedPostMapper userFeedPostMapper;
 
     /**
      * {@inheritDoc}
@@ -488,5 +496,128 @@ public class UserServiceImpl implements UserService {
         vo.setChannel(row.getChannel());
         vo.setEnabled(row.getEnabled() != null && row.getEnabled() == 1);
         return vo;
+    }
+
+    @Override
+    public PageVO<FeedVO> listFeeds(Integer page, Integer size) {
+        Long userId = requireLoginUserId();
+        int p = page == null || page < 1 ? 1 : page;
+        int s = size == null || size < 1 ? 10 : Math.min(size, 50);
+        int total = userFeedPostMapper.countByUserId(userId);
+        List<FeedVO> list = new ArrayList<>();
+        if (total > 0) {
+            for (UserFeedPost row : userFeedPostMapper.selectPageByUserId(userId, (p - 1) * s, s)) {
+                list.add(toFeedVo(row));
+            }
+        }
+        PageVO<FeedVO> pageVO = new PageVO<>();
+        pageVO.setTotal(total);
+        pageVO.setSize(s);
+        pageVO.setPage(p);
+        pageVO.setList(list);
+        return pageVO;
+    }
+
+    /**
+     * 动态实体转列表 VO；库内图片为逗号分隔，接口返回数组。
+     *
+     * @param row 动态行
+     * @return 列表卡片
+     */
+    private FeedVO toFeedVo(UserFeedPost row) {
+        FeedVO vo = new FeedVO();
+        vo.setFeedId(row.getId());
+        vo.setContent(row.getContent());
+        vo.setCreatedAt(row.getCreatedAt());
+        vo.setImages(splitImageUrls(row.getImageUrls()));
+        vo.setPrivacy(row.getPrivacy());
+        vo.setLikeCount(row.getLikeCount() == null ? 0 : row.getLikeCount());
+        vo.setCommentCount(0);
+        return vo;
+    }
+
+    /**
+     * 库内逗号字符串 → 接口数组。
+     *
+     * @param imageUrls 逗号分隔 URL，可为 null
+     * @return 图片列表；无图返回空列表
+     */
+    private List<String> splitImageUrls(String imageUrls) {
+        if (imageUrls == null || imageUrls.isBlank()) {
+            return List.of();
+        }
+        List<String> images = new ArrayList<>();
+        for (String part : imageUrls.split(",")) {
+            String url = part.trim();
+            if (!url.isEmpty()) {
+                images.add(url);
+            }
+        }
+        return images;
+    }
+
+    /**
+     * 接口数组 → 库内逗号字符串。
+     *
+     * @param images 图片 URL 列表，可为 null
+     * @return 逗号拼接；无图返回 null
+     */
+    private String joinImageUrls(List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String url : images) {
+            if (url == null || url.isBlank()) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append(',');
+            }
+            sb.append(url.trim());
+        }
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    @Override
+    public FeedPublishVO addFeed(AddFeedDTO dto) {
+        Long userId = requireLoginUserId();
+        if (dto.getContent() == null || dto.getContent().isBlank()) {
+            throw new BizException("动态内容不能为空");
+        }
+        if (dto.getImages() != null && dto.getImages().size() > 9) {
+            throw new BizException("最多9张图片");
+        }
+        Integer privacy = dto.getPrivacy() == null ? 1 : dto.getPrivacy();
+        if (privacy != 0 && privacy != 1) {
+            throw new BizException("隐私设置不合法");
+        }
+        UserFeedPost row = new UserFeedPost();
+        row.setUserId(userId);
+        row.setContent(dto.getContent().trim());
+        row.setImageUrls(joinImageUrls(dto.getImages()));
+        row.setPrivacy(privacy);
+        row.setLikeCount(0);
+        int rows = userFeedPostMapper.insert(row);
+        if (rows <= 0) {
+            throw new BizException("发布动态失败");
+        }
+        return new FeedPublishVO(row.getId(), 0);
+    }
+
+    @Override
+    public void deleteFeed(Long id) {
+        Long userId = requireLoginUserId();
+        UserFeedPost row = userFeedPostMapper.selectById(id);
+        if (row == null) {
+            throw new BizException("动态不存在");
+        }
+        if (!row.getUserId().equals(userId)) {
+            throw new BizException("无权限删除");
+        }
+        int deleted = userFeedPostMapper.deleteByIdAndUserId(id, userId);
+        if (deleted <= 0) {
+            throw new BizException("删除动态失败");
+        }
     }
 }

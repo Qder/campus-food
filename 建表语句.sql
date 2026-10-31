@@ -735,6 +735,26 @@ INSERT INTO sys_role (id, code, name, remark) VALUES
   (3, 'ADMIN', '平台管理员', '后台初始化账号')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
+-- -----------------------------------------------------------------------------
+-- 13. 用户美食动态（Feed 正文；时间线 ID 在 Redis）
+-- -----------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS user_feed_post;
+
+CREATE TABLE user_feed_post (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '动态ID',
+  user_id     BIGINT UNSIGNED NOT NULL COMMENT '发布用户ID',
+  content     VARCHAR(2000) NOT NULL COMMENT '动态文字内容',
+  food_id     BIGINT UNSIGNED DEFAULT NULL COMMENT '关联美食ID，可空',
+  image_urls  VARCHAR(2000) DEFAULT NULL COMMENT '图片URL，多个用英文逗号分隔，可空',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+  privacy     TINYINT NOT NULL DEFAULT 1 COMMENT '隐私:0仅自己可见1公开',
+  like_count  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
+  PRIMARY KEY (id),
+  KEY idx_feed_user_time (user_id, created_at),
+  KEY idx_feed_food (food_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户美食动态(Feed)';
+
 -- =============================================================================
 -- END
 -- =============================================================================

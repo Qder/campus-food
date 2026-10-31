@@ -1,6 +1,7 @@
 package com.campus.food.campusfood.controller;
 
 import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.AddFeedDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
@@ -8,6 +9,8 @@ import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.vo.FavoriteAddVO;
 import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.FeedPublishVO;
+import com.campus.food.campusfood.vo.FeedVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
@@ -18,6 +21,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -109,5 +113,22 @@ public class UserController {
     @PutMapping("/reminders")
     public RemindVO updateReminder(@Valid @RequestBody ReminderDTO dto) {
         return userService.updateReminder(dto);
+    }
+
+    @GetMapping("/feeds")
+    public PageVO<FeedVO> listFeeds(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return userService.listFeeds(page, size);
+    }
+
+    @PostMapping("/feeds")
+    public FeedPublishVO addFeed(@Valid @RequestBody AddFeedDTO dto) {
+        return userService.addFeed(dto);
+    }
+
+    @DeleteMapping("/feeds/{id}")
+    public void deleteFeed(@PathVariable Long id) {
+        userService.deleteFeed(id);
     }
 }

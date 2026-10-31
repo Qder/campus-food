@@ -3,15 +3,20 @@ package com.campus.food.campusfood.service;
 import java.util.List;
 
 import com.campus.food.campusfood.dto.AddFavoritiesDTO;
+import com.campus.food.campusfood.dto.AddFeedDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.vo.FavoriteAddVO;
 import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.FeedPublishVO;
+import com.campus.food.campusfood.vo.FeedVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
+
+import jakarta.validation.Valid;
 
 /**
  * 当前登录用户资料服务。
@@ -97,7 +102,14 @@ public interface UserService {
      *
      * @param dto remindType、enabled，channel 可选（仅 INBOX）
      * @return 更新后的开关
-     * @throws com.campus.food.campusfood.exception.BizException 未登录、类型不支持或 enabled 为空时
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、类型不支持或 enabled
+     *                                                           为空时
      */
     RemindVO updateReminder(ReminderDTO dto);
+
+    PageVO<FeedVO> listFeeds(Integer page, Integer size);
+
+    FeedPublishVO addFeed(AddFeedDTO dto);
+
+    void deleteFeed(Long id);
 }

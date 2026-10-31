@@ -4,13 +4,13 @@
 <mapper namespace="com.campus.food.campusfood.mapper.UserFeedPostMapper">
 
     <sql id="Base_Column_List">
-        id, user_id, content, food_id, image_urls, created_at
+        id, user_id, content, food_id, image_urls, created_at, privacy, like_count
     </sql>
 
     <insert id="insert" parameterType="com.campus.food.campusfood.entity.UserFeedPost"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user_feed_post (user_id, content, food_id, image_urls)
-        VALUES (#{userId}, #{content}, #{foodId}, #{imageUrls})
+        INSERT INTO user_feed_post (user_id, content, food_id, image_urls, privacy, like_count)
+        VALUES (#{userId}, #{content}, #{foodId}, #{imageUrls}, #{privacy}, #{likeCount})
     </insert>
 
     <update id="update" parameterType="com.campus.food.campusfood.entity.UserFeedPost">
@@ -20,30 +20,51 @@
             <if test="content != null">content = #{content},</if>
             <if test="foodId != null">food_id = #{foodId},</if>
             <if test="imageUrls != null">image_urls = #{imageUrls},</if>
+            <if test="privacy != null">privacy = #{privacy},</if>
+            <if test="likeCount != null">like_count = #{likeCount},</if>
         </set>
         WHERE id = #{id}
     </update>
 
-    <delete id="delete" parameterType="java.lang.Long">
+    <delete id="delete">
         DELETE FROM user_feed_post
         WHERE id = #{id}
     </delete>
 
-    <select id="selectById" parameterType="java.lang.Long"
-            resultType="com.campus.food.campusfood.entity.UserFeedPost">
+    <delete id="deleteByIdAndUserId">
+        DELETE FROM user_feed_post
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </delete>
+
+    <select id="selectById" resultType="com.campus.food.campusfood.entity.UserFeedPost">
         SELECT
         <include refid="Base_Column_List"/>
         FROM user_feed_post
         WHERE id = #{id}
     </select>
 
-    <select id="selectByUserId" parameterType="java.lang.Long"
-            resultType="com.campus.food.campusfood.entity.UserFeedPost">
+    <select id="selectByUserId" resultType="com.campus.food.campusfood.entity.UserFeedPost">
         SELECT
         <include refid="Base_Column_List"/>
         FROM user_feed_post
         WHERE user_id = #{userId}
         ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM user_feed_post
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectPageByUserId" resultType="com.campus.food.campusfood.entity.UserFeedPost">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_feed_post
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{offset}, #{size}
     </select>
 
     <select id="selectAll" resultType="com.campus.food.campusfood.entity.UserFeedPost">
@@ -53,8 +74,7 @@
         ORDER BY created_at DESC, id DESC
     </select>
 
-    <select id="selectByIds" parameterType="java.util.List"
-            resultType="com.campus.food.campusfood.entity.UserFeedPost">
+    <select id="selectByIds" resultType="com.campus.food.campusfood.entity.UserFeedPost">
         SELECT
         <include refid="Base_Column_List"/>
         FROM user_feed_post
@@ -63,5 +83,5 @@
             #{id}
         </foreach>
     </select>
-    
+
 </mapper>

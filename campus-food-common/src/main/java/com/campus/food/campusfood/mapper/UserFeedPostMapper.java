@@ -1,19 +1,13 @@
 package com.campus.food.campusfood.mapper;
 
 import com.campus.food.campusfood.entity.UserFeedPost;
-
-import feign.Param;
-
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /**
  * {@code user_feed_post} 表 MyBatis Mapper。
- *
- * <p>常用索引（仅注释提示，不自动生成方法）：
- * - INDEX idx_feed_user_time: user_id, created_at → 按人取时间线
- * - INDEX idx_feed_food: food_id → 按美食聚合动态
  *
  * @author yang
  * @since 2026-10-23
@@ -43,7 +37,16 @@ public interface UserFeedPostMapper {
      * @param id 动态 ID
      * @return 影响行数
      */
-    int delete(Long id);
+    int delete(@Param("id") Long id);
+
+    /**
+     * 按主键 + 发布者删除，避免删别人的动态。
+     *
+     * @param id     动态 ID
+     * @param userId 发布者用户 ID
+     * @return 影响行数
+     */
+    int deleteByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
      * 按主键查询动态。
@@ -51,7 +54,7 @@ public interface UserFeedPostMapper {
      * @param id 动态 ID
      * @return 动态记录；不存在返回 null
      */
-    UserFeedPost selectById(Long id);
+    UserFeedPost selectById(@Param("id") Long id);
 
     /**
      * 查询某人发布的动态，按发布时间倒序。
@@ -59,7 +62,27 @@ public interface UserFeedPostMapper {
      * @param userId 发布用户 ID
      * @return 动态列表；无数据返回空列表
      */
-    List<UserFeedPost> selectByUserId(Long userId);
+    List<UserFeedPost> selectByUserId(@Param("userId") Long userId);
+
+    /**
+     * 统计某人动态条数，供分页 total。
+     *
+     * @param userId 发布用户 ID
+     * @return 条数
+     */
+    int countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 分页查询某人动态。
+     *
+     * @param userId 发布用户 ID
+     * @param offset 偏移
+     * @param size   条数
+     * @return 当前页；无数据返回空列表
+     */
+    List<UserFeedPost> selectPageByUserId(@Param("userId") Long userId,
+                                          @Param("offset") int offset,
+                                          @Param("size") int size);
 
     /**
      * 查询全部动态，按发布时间倒序。
