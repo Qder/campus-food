@@ -2,25 +2,43 @@ package com.campus.food.campusfood.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.common.SocialRedisKeys;
+import com.campus.food.campusfood.dto.CreateSessionDTO;
+import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.entity.ChatMessage;
+import com.campus.food.campusfood.entity.ChatMessageIndex;
+import com.campus.food.campusfood.entity.ChatSession;
+import com.campus.food.campusfood.entity.ChatSessionMember;
 import com.campus.food.campusfood.entity.FriendRequest;
 import com.campus.food.campusfood.entity.Friendship;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
+import com.campus.food.campusfood.mapper.ChatMessageIndexMapper;
+import com.campus.food.campusfood.mapper.ChatSessionMapper;
+import com.campus.food.campusfood.mapper.ChatSessionMemberMapper;
 import com.campus.food.campusfood.mapper.FriendRequestMapper;
 import com.campus.food.campusfood.mapper.FriendshipMapper;
+import com.campus.food.campusfood.mapper.UserBlacklistMapper;
+import com.campus.food.campusfood.repository.ChatMessageRepository;
 import com.campus.food.campusfood.service.FriendshipService;
 import com.campus.food.campusfood.service.SocialService;
+import com.campus.food.campusfood.vo.ChatMessagePageVO;
+import com.campus.food.campusfood.vo.ChatMessageVO;
+import com.campus.food.campusfood.vo.ChatSessionVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
 
@@ -50,11 +68,21 @@ public class SocialServiceImpl implements SocialService {
     /** 留言最大长度，与 {@code friend_request.message VARCHAR(255)} 对齐 */
     private static final int MESSAGE_MAX_LENGTH = 255;
 
+    private static final int SESSION_TYPE_PRIVATE = 1;
+    private static final int TEXT_MAX_LENGTH = 1000;
+    private static final int PREVIEW_MAX_LENGTH = 255;
+    private static final Set<String> MSG_TYPES = Set.of("TEXT", "IMAGE", "EMOJI");
+
     private final FriendRequestMapper friendRequestMapper;
     private final FriendshipMapper friendshipMapper;
     private final UserFeignClient userFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final FriendshipService friendshipService;
+    private final ChatSessionMapper chatSessionMapper;
+    private final ChatSessionMemberMapper chatSessionMemberMapper;
+    private final ChatMessageIndexMapper chatMessageIndexMapper;
+    private final UserBlacklistMapper userBlacklistMapper;
+    private final ChatMessageRepository chatMessageRepository;
 
     /**
      * 构造注入 Mapper、Feign 客户端与 Redis 模板。
@@ -69,12 +97,22 @@ public class SocialServiceImpl implements SocialService {
                              FriendshipMapper friendshipMapper,
                              UserFeignClient userFeignClient,
                              StringRedisTemplate stringRedisTemplate,
-                             FriendshipService friendshipService) {
+                             FriendshipService friendshipService,
+                             ChatSessionMapper chatSessionMapper,
+                             ChatSessionMemberMapper chatSessionMemberMapper,
+                             ChatMessageIndexMapper chatMessageIndexMapper,
+                             UserBlacklistMapper userBlacklistMapper,
+                             ChatMessageRepository chatMessageRepository) {
         this.friendRequestMapper = friendRequestMapper;
         this.friendshipMapper = friendshipMapper;
         this.userFeignClient = userFeignClient;
         this.stringRedisTemplate = stringRedisTemplate;
         this.friendshipService = friendshipService;
+        this.chatSessionMapper = chatSessionMapper;
+        this.chatSessionMemberMapper = chatSessionMemberMapper;
+        this.chatMessageIndexMapper = chatMessageIndexMapper;
+        this.userBlacklistMapper = userBlacklistMapper;
+        this.chatMessageRepository = chatMessageRepository;
     }
 
     /**
@@ -369,5 +407,203 @@ public class SocialServiceImpl implements SocialService {
         vo.setNickname(user.getNickname());
         vo.setAvatarUrl(user.getAvatarUrl());
         return vo;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public ChatSessionVO createOrGetSession(CreateSessionDTO dto) {
+        Long curId = requireCurUserId();
+        if (dto == null || dto.getPeerUserId() == null) {
+            throw new BizException("对方用户不能为空");
+        }
+        if (dto.getSessionType() == null || dto.getSessionType() != SESSION_TYPE_PRIVATE) {
+            throw new BizException("本期仅支持私聊");
+        }
+        Long peerId = dto.getPeerUserId();
+        if (curId.equals(peerId)) {
+            throw new BizException("不能与自己发起会话");
+        }
+        loadUser(peerId);
+        if (friendshipMapper.selectByUserIdAndFriendId(curId, peerId) <= 0) {
+            throw new BizException("请先添加对方为好友");
+        }
+        assertNotBlocked(curId, peerId, true);
+        ChatSession existing = chatSessionMapper.selectPrivateBetween(curId, peerId);
+        if (existing == null) {
+            ChatSession session = new ChatSession();
+            session.setSessionType(SESSION_TYPE_PRIVATE);
+            session.setPeerUserId(peerId);
+            chatSessionMapper.insert(session);
+            insertMember(session.getId(), curId);
+            insertMember(session.getId(), peerId);
+            existing = session;
+        }
+        return toSessionVo(existing.getId(), peerId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChatMessagePageVO listMessages(Long sessionId, String beforeMsgId, Integer size) {
+        Long curId = requireCurUserId();
+        requireSessionMember(sessionId, curId);
+        int s = size == null || size < 1 ? 20 : Math.min(size, 50);
+        List<ChatMessage> rows;
+        if (beforeMsgId == null || beforeMsgId.isBlank()) {
+            rows = chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(
+                    sessionId, PageRequest.of(0, s));
+        } else {
+            ChatMessage cursor = chatMessageRepository.findById(beforeMsgId)
+                    .orElseThrow(() -> new BizException("消息不存在"));
+            if (!sessionId.equals(cursor.getSessionId())) {
+                throw new BizException("消息不存在");
+            }
+            rows = chatMessageRepository.findBySessionIdAndCreatedAtBeforeOrderByCreatedAtDesc(
+                    sessionId, cursor.getCreatedAt(), PageRequest.of(0, s));
+        }
+        Map<Long, String> nickCache = new HashMap<>();
+        List<ChatMessageVO> list = new ArrayList<>();
+        for (ChatMessage row : rows) {
+            list.add(toMessageVo(row, curId, nickCache));
+        }
+        ChatMessagePageVO page = new ChatMessagePageVO();
+        page.setSessionId(sessionId);
+        page.setHasMore(list.size() == s);
+        page.setList(list);
+        return page;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto) {
+        Long curId = requireCurUserId();
+        requireSessionMember(sessionId, curId);
+        Long peerId = chatSessionMemberMapper.selectPeerUserId(sessionId, curId);
+        if (peerId != null) {
+            assertNotBlocked(curId, peerId, false);
+        }
+        if (dto == null || dto.getMsgType() == null || dto.getMsgType().isBlank()) {
+            throw new BizException("消息类型不能为空");
+        }
+        String msgType = dto.getMsgType().trim().toUpperCase();
+        if (!MSG_TYPES.contains(msgType)) {
+            throw new BizException("不支持的消息类型");
+        }
+        if (dto.getContent() == null || dto.getContent().isBlank()) {
+            throw new BizException("消息内容不能为空");
+        }
+        String content = dto.getContent().trim();
+        if ("TEXT".equals(msgType) && content.length() > TEXT_MAX_LENGTH) {
+            throw new BizException("文字消息不能超过1000字");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ChatMessage msg = new ChatMessage();
+        msg.setSessionId(sessionId);
+        msg.setFromUserId(curId);
+        msg.setMsgType(msgType);
+        msg.setContent(content);
+        msg.setClientMsgId(dto.getClientMsgId());
+        msg.setCreatedAt(now);
+        ChatMessage saved = chatMessageRepository.save(msg);
+
+        ChatMessageIndex index = new ChatMessageIndex();
+        index.setMongoMsgId(saved.getId());
+        index.setSessionId(sessionId);
+        index.setFromUserId(curId);
+        index.setMsgType(msgType);
+        index.setCreatedAt(now);
+        chatMessageIndexMapper.insert(index);
+        chatSessionMapper.updateLastMessage(sessionId, previewOf(msgType, content), now);
+
+        Map<Long, String> nickCache = new HashMap<>();
+        return toMessageVo(saved, curId, nickCache);
+    }
+
+    private void insertMember(Long sessionId, Long userId) {
+        ChatSessionMember member = new ChatSessionMember();
+        member.setSessionId(sessionId);
+        member.setUserId(userId);
+        member.setUnreadCount(0);
+        chatSessionMemberMapper.insert(member);
+    }
+
+    private ChatSessionVO toSessionVo(Long sessionId, Long peerId) {
+        UserInfo peer = loadUser(peerId);
+        ChatSessionVO vo = new ChatSessionVO();
+        vo.setSessionId(sessionId);
+        vo.setSessionType(SESSION_TYPE_PRIVATE);
+        vo.setPeerUserId(peerId);
+        vo.setPeerNickname(peer.getNickname());
+        vo.setPeerAvatarUrl(peer.getAvatarUrl());
+        return vo;
+    }
+
+    private void requireSessionMember(Long sessionId, Long userId) {
+        if (sessionId == null) {
+            throw new BizException("会话不存在");
+        }
+        ChatSession session = chatSessionMapper.selectById(sessionId);
+        if (session == null) {
+            throw new BizException("会话不存在");
+        }
+        if (chatSessionMemberMapper.countMember(sessionId, userId) <= 0) {
+            throw new BizException("无权访问该会话");
+        }
+    }
+
+    /**
+     * 双向拉黑都禁止会话/发信。
+     *
+     * @param me       当前用户
+     * @param peer     对方
+     * @param forCreate true 用开会话文案
+     */
+    private void assertNotBlocked(Long me, Long peer, boolean forCreate) {
+        if (userBlacklistMapper.countPair(peer, me) > 0) {
+            throw new BizException(forCreate ? "你已被对方拉黑，无法发起会话" : "消息发送失败，对方已将你拉黑");
+        }
+        if (userBlacklistMapper.countPair(me, peer) > 0) {
+            throw new BizException(forCreate ? "你已将对方拉黑，无法发起会话" : "消息发送失败，对方已将你拉黑");
+        }
+    }
+
+    private ChatMessageVO toMessageVo(ChatMessage row, Long curId, Map<Long, String> nickCache) {
+        ChatMessageVO vo = new ChatMessageVO();
+        vo.setMsgId(row.getId());
+        vo.setClientMsgId(row.getClientMsgId());
+        vo.setSessionId(row.getSessionId());
+        vo.setFromUserId(row.getFromUserId());
+        vo.setMsgType(row.getMsgType());
+        vo.setContent(row.getContent());
+        vo.setCreatedAt(row.getCreatedAt());
+        if (curId.equals(row.getFromUserId())) {
+            vo.setFromNickname("我");
+        } else {
+            vo.setFromNickname(nickCache.computeIfAbsent(row.getFromUserId(), id -> {
+                try {
+                    return loadUser(id).getNickname();
+                } catch (BizException e) {
+                    return "用户";
+                }
+            }));
+        }
+        return vo;
+    }
+
+    private String previewOf(String msgType, String content) {
+        if ("IMAGE".equals(msgType)) {
+            return "[图片]";
+        }
+        if ("EMOJI".equals(msgType)) {
+            return content.length() > PREVIEW_MAX_LENGTH ? content.substring(0, PREVIEW_MAX_LENGTH) : content;
+        }
+        return content.length() > PREVIEW_MAX_LENGTH ? content.substring(0, PREVIEW_MAX_LENGTH) : content;
     }
 }

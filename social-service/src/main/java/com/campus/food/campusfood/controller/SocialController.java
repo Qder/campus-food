@@ -8,10 +8,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.SocialService;
+import com.campus.food.campusfood.dto.CreateSessionDTO;
+import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.vo.ChatMessagePageVO;
+import com.campus.food.campusfood.vo.ChatMessageVO;
+import com.campus.food.campusfood.vo.ChatSessionVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
 
@@ -86,5 +92,34 @@ public class SocialController {
     @PostMapping("/friends/{friendId}/delete")
     public void deleteFriend(@PathVariable("friendId") Long friendId) {
         socialService.deleteFriend(friendId);
+    }
+
+    /**
+     * 创建或返回已有私聊会话。
+     */
+    @PostMapping("/sessions")
+    public ChatSessionVO createOrGetSession(@RequestBody CreateSessionDTO dto) {
+        return socialService.createOrGetSession(dto);
+    }
+
+    /**
+     * 拉取会话历史，按时间倒序。
+     */
+    @GetMapping("/sessions/{sessionId}/messages")
+    public ChatMessagePageVO listMessages(
+            @PathVariable("sessionId") Long sessionId,
+            @RequestParam(required = false) String beforeMsgId,
+            @RequestParam(required = false) Integer size) {
+        return socialService.listMessages(sessionId, beforeMsgId, size);
+    }
+
+    /**
+     * 向会话发送一条消息。
+     */
+    @PostMapping("/sessions/{sessionId}/messages")
+    public ChatMessageVO sendMessage(
+            @PathVariable("sessionId") Long sessionId,
+            @RequestBody SendMessageDTO dto) {
+        return socialService.sendMessage(sessionId, dto);
     }
 }

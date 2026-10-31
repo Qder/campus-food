@@ -2,6 +2,11 @@ package com.campus.food.campusfood.service;
 
 import java.util.List;
 
+import com.campus.food.campusfood.dto.CreateSessionDTO;
+import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.vo.ChatMessagePageVO;
+import com.campus.food.campusfood.vo.ChatMessageVO;
+import com.campus.food.campusfood.vo.ChatSessionVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
 
@@ -70,4 +75,31 @@ public interface SocialService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录时
      */
     List<FriendRequestVo> getFriendRequests();
+
+    /**
+     * 创建或返回已有私聊会话。
+     *
+     * @param dto peerUserId、sessionType（本期仅 1）
+     * @return 会话摘要
+     */
+    ChatSessionVO createOrGetSession(CreateSessionDTO dto);
+
+    /**
+     * 拉取会话历史，时间倒序。
+     *
+     * @param sessionId   会话 ID
+     * @param beforeMsgId 更早于该 Mongo 消息 ID，可为 null
+     * @param size        条数
+     * @return 分页
+     */
+    ChatMessagePageVO listMessages(Long sessionId, String beforeMsgId, Integer size);
+
+    /**
+     * 发送一条消息。
+     *
+     * @param sessionId 会话 ID
+     * @param dto       类型与正文
+     * @return 落库后的消息
+     */
+    ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto);
 }

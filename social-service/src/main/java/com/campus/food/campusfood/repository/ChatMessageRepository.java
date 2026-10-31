@@ -23,4 +23,15 @@ public interface ChatMessageRepository extends MongoRepository<ChatMessage, Stri
      * @return 消息列表；无数据返回空列表
      */
     List<ChatMessage> findBySessionIdOrderByCreatedAtDesc(Long sessionId, Pageable pageable);
+
+    /**
+     * 取早于指定时间的消息，供上滑加载。
+     *
+     * @param sessionId 会话 ID
+     * @param createdAt 游标时间（该条之前）
+     * @param pageable  分页
+     * @return 倒序列表
+     */
+    List<ChatMessage> findBySessionIdAndCreatedAtBeforeOrderByCreatedAtDesc(
+            Long sessionId, java.time.LocalDateTime createdAt, Pageable pageable);
 }

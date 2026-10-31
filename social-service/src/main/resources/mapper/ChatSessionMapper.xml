@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.ChatSessionMapper">
+
+    <sql id="Base_Column_List">
+        id, session_type, peer_user_id, group_id, last_msg_preview, last_msg_at, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.ChatSession"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_session (session_type, peer_user_id, group_id)
+        VALUES (#{sessionType}, #{peerUserId}, #{groupId})
+    </insert>
+
+    <select id="selectById" resultType="com.campus.food.campusfood.entity.ChatSession">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM chat_session
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectPrivateBetween" resultType="com.campus.food.campusfood.entity.ChatSession">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM chat_session s
+        INNER JOIN chat_session_member a ON a.session_id = s.id AND a.user_id = #{userId}
+        INNER JOIN chat_session_member b ON b.session_id = s.id AND b.user_id = #{peerUserId}
+        WHERE s.session_type = 1
+        LIMIT 1
+    </select>
+
+    <update id="updateLastMessage">
+        UPDATE chat_session
+        SET last_msg_preview = #{preview},
+            last_msg_at = #{lastMsgAt}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.UserBlacklistMapper">
+
+    <select id="countPair" resultType="int">
+        SELECT COUNT(*)
+        FROM user_blacklist
+        WHERE user_id = #{userId}
+          AND blocked_uid = #{blockedUid}
+    </select>
+
+</mapper>

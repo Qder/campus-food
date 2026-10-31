@@ -38,6 +38,9 @@ public class ChatMessage {
     /** 消息正文；图片类消息存 URL */
     private String content;
 
+    /** 前端去重 ID，可为空 */
+    private String clientMsgId;
+
     /** 发送时间，对应 MySQL chat_message_index.created_at */
     private LocalDateTime createdAt;
 }
