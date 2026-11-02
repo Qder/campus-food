@@ -3,6 +3,7 @@ package com.campus.food.campusfood.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,8 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.SocialService;
+import com.campus.food.campusfood.dto.BlockUserDTO;
 import com.campus.food.campusfood.dto.CreateSessionDTO;
 import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.vo.BlacklistItemVO;
+import com.campus.food.campusfood.vo.BlockResultVO;
 import com.campus.food.campusfood.vo.ChatMessagePageVO;
 import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
@@ -24,7 +28,7 @@ import com.campus.food.campusfood.vo.FriendVo;
 import jakarta.validation.Valid;
 
 /**
- * 社交接口：好友申请、好友列表与删除。均需 JWT，身份取自当前登录用户。
+ * 社交接口：好友、黑名单、私聊。均需 JWT，身份取自当前登录用户。
  *
  * @author yang
  * @since 2026-10-23
@@ -121,5 +125,29 @@ public class SocialController {
             @PathVariable("sessionId") Long sessionId,
             @RequestBody SendMessageDTO dto) {
         return socialService.sendMessage(sessionId, dto);
+    }
+
+    /**
+     * 拉黑：须已是好友。写入名单后双向删除好友，对方再发消息会被拦截。
+     */
+    @PostMapping("/blacklist")
+    public BlockResultVO blockUser(@RequestBody BlockUserDTO dto) {
+        return socialService.blockUser(dto);
+    }
+
+    /**
+     * 移出黑名单。不恢复好友关系。
+     */
+    @DeleteMapping("/blacklist/{userId}")
+    public void unblockUser(@PathVariable("userId") Long userId) {
+        socialService.unblockUser(userId);
+    }
+
+    /**
+     * 当前用户的黑名单，按拉黑时间倒序。
+     */
+    @GetMapping("/blacklist")
+    public List<BlacklistItemVO> listBlacklist() {
+        return socialService.listBlacklist();
     }
 }

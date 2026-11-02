@@ -26,7 +26,7 @@ spring:
     uri: mongodb://localhost:27017/campus_food_chat
 
 mybatis:
-  mapper-locations: classpath:mapper/**/*.xml
+  mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.campus.food.campusfood.entity
   configuration:
     map-underscore-to-camel-case: true

@@ -16,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.common.SocialRedisKeys;
+import com.campus.food.campusfood.dto.BlockUserDTO;
 import com.campus.food.campusfood.dto.CreateSessionDTO;
 import com.campus.food.campusfood.dto.SendMessageDTO;
 import com.campus.food.campusfood.entity.ChatMessage;
 import com.campus.food.campusfood.entity.ChatMessageIndex;
 import com.campus.food.campusfood.entity.ChatSession;
 import com.campus.food.campusfood.entity.ChatSessionMember;
+import com.campus.food.campusfood.entity.UserBlacklist;
 import com.campus.food.campusfood.entity.FriendRequest;
 import com.campus.food.campusfood.entity.Friendship;
 import com.campus.food.campusfood.exception.BizException;
@@ -36,6 +38,8 @@ import com.campus.food.campusfood.mapper.UserBlacklistMapper;
 import com.campus.food.campusfood.repository.ChatMessageRepository;
 import com.campus.food.campusfood.service.FriendshipService;
 import com.campus.food.campusfood.service.SocialService;
+import com.campus.food.campusfood.vo.BlacklistItemVO;
+import com.campus.food.campusfood.vo.BlockResultVO;
 import com.campus.food.campusfood.vo.ChatMessagePageVO;
 import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
@@ -45,10 +49,12 @@ import com.campus.food.campusfood.vo.FriendVo;
 import feign.FeignException;
 
 /**
- * 社交业务门面实现：好友申请与处理。
+ * 社交业务门面实现：好友申请与处理、私聊会话与消息。
  *
- * <p>申请阶段的判重与隐私校验、同意阶段的双向关系与 Redis 关注集合
- * 都在这一层完成，底层 Mapper 只负责单表读写。
+ * <p>
+ * 申请阶段的判重与隐私校验、同意阶段的双向关系与 Redis 关注集合
+ * 都在这一层完成。私聊同样走这一层：MySQL 管会话/成员/索引，Mongo 管正文，
+ * 底层 Mapper / Repository 只负责单表读写。
  *
  * @author yang
  * @since 2026-10-23
@@ -68,9 +74,13 @@ public class SocialServiceImpl implements SocialService {
     /** 留言最大长度，与 {@code friend_request.message VARCHAR(255)} 对齐 */
     private static final int MESSAGE_MAX_LENGTH = 255;
 
+    /** 会话类型：1 私聊（本期只允许这个值） */
     private static final int SESSION_TYPE_PRIVATE = 1;
+    /** TEXT 正文最大字数，与契约 4.6.8 对齐 */
     private static final int TEXT_MAX_LENGTH = 1000;
+    /** 会话列表预览截断长度，对齐 {@code chat_session.last_msg_preview VARCHAR(255)} */
     private static final int PREVIEW_MAX_LENGTH = 255;
+    /** 允许的消息类型 */
     private static final Set<String> MSG_TYPES = Set.of("TEXT", "IMAGE", "EMOJI");
 
     private final FriendRequestMapper friendRequestMapper;
@@ -87,22 +97,27 @@ public class SocialServiceImpl implements SocialService {
     /**
      * 构造注入 Mapper、Feign 客户端与 Redis 模板。
      *
-     * @param friendRequestMapper  好友申请 Mapper
-     * @param friendshipMapper     好友关系 Mapper
-     * @param userFeignClient      用户服务内部接口
-     * @param stringRedisTemplate  Redis 字符串模板
-     * @param friendshipService    好友关系服务，删除好友时复用其双向删除与 Redis 清理
+     * @param friendRequestMapper     好友申请 Mapper
+     * @param friendshipMapper        好友关系 Mapper
+     * @param userFeignClient         用户服务内部接口
+     * @param stringRedisTemplate     Redis 字符串模板
+     * @param friendshipService       好友关系服务，删除好友时复用其双向删除与 Redis 清理
+     * @param chatSessionMapper       会话表
+     * @param chatSessionMemberMapper 会话成员表
+     * @param chatMessageIndexMapper  消息索引表
+     * @param userBlacklistMapper     拉黑只读查询
+     * @param chatMessageRepository   Mongo 消息正文
      */
     public SocialServiceImpl(FriendRequestMapper friendRequestMapper,
-                             FriendshipMapper friendshipMapper,
-                             UserFeignClient userFeignClient,
-                             StringRedisTemplate stringRedisTemplate,
-                             FriendshipService friendshipService,
-                             ChatSessionMapper chatSessionMapper,
-                             ChatSessionMemberMapper chatSessionMemberMapper,
-                             ChatMessageIndexMapper chatMessageIndexMapper,
-                             UserBlacklistMapper userBlacklistMapper,
-                             ChatMessageRepository chatMessageRepository) {
+            FriendshipMapper friendshipMapper,
+            UserFeignClient userFeignClient,
+            StringRedisTemplate stringRedisTemplate,
+            FriendshipService friendshipService,
+            ChatSessionMapper chatSessionMapper,
+            ChatSessionMemberMapper chatSessionMemberMapper,
+            ChatMessageIndexMapper chatMessageIndexMapper,
+            UserBlacklistMapper userBlacklistMapper,
+            ChatMessageRepository chatMessageRepository) {
         this.friendRequestMapper = friendRequestMapper;
         this.friendshipMapper = friendshipMapper;
         this.userFeignClient = userFeignClient;
@@ -118,7 +133,8 @@ public class SocialServiceImpl implements SocialService {
     /**
      * {@inheritDoc}
      *
-     * <p>申请人一律取 {@link UserContext}，入参中的 {@code fromUserId} 被忽略；
+     * <p>
+     * 申请人一律取 {@link UserContext}，入参中的 {@code fromUserId} 被忽略；
      * 申请状态由服务端置为待处理，留言去空白并截断到列宽。
      */
     @Override
@@ -135,6 +151,13 @@ public class SocialServiceImpl implements SocialService {
         UserInfo target = loadUser(toUserId);
         if (target.getDeleted() != null && target.getDeleted() != 0) {
             throw new BizException("用户不存在");
+        }
+        // 拉黑后不能互相发申请；移出黑名单后才可以
+        if (userBlacklistMapper.countPair(toUserId, curId) > 0) {
+            throw new BizException("你已被对方拉黑");
+        }
+        if (userBlacklistMapper.countPair(curId, toUserId) > 0) {
+            throw new BizException("你已将对方拉黑，请先移出黑名单");
         }
         if (!Integer.valueOf(1).equals(target.getPrivacyAddFriend())) {
             throw new BizException("对方不允许添加好友");
@@ -164,7 +187,8 @@ public class SocialServiceImpl implements SocialService {
     /**
      * {@inheritDoc}
      *
-     * <p>只有被申请人本人可以处理，且申请必须仍处于待处理状态；
+     * <p>
+     * 只有被申请人本人可以处理，且申请必须仍处于待处理状态；
      * 同意时先建双向关系再回填状态，两者同事务，任一步失败整体回滚。
      * Redis 关注集合在库写成功后才更新，失败只记日志并以库为准。
      */
@@ -201,6 +225,11 @@ public class SocialServiceImpl implements SocialService {
         }
 
         if (STATUS_ACCEPTED.equals(targetStatus)) {
+            // 处理期间若已被拉黑，不能再结成好友
+            if (userBlacklistMapper.countPair(curId, request.getFromUserId()) > 0
+                    || userBlacklistMapper.countPair(request.getFromUserId(), curId) > 0) {
+                throw new BizException("双方存在拉黑关系，无法同意申请");
+            }
             addFriendPair(request.getFromUserId(), request.getToUserId());
         }
 
@@ -341,7 +370,8 @@ public class SocialServiceImpl implements SocialService {
     /**
      * {@inheritDoc}
      *
-     * <p>逐个好友调 user-service 查昵称与头像，单个好友查不到时跳过，
+     * <p>
+     * 逐个好友调 user-service 查昵称与头像，单个好友查不到时跳过，
      * 不让一条坏数据把整个列表打成 500。
      */
     @Override
@@ -375,7 +405,8 @@ public class SocialServiceImpl implements SocialService {
     /**
      * {@inheritDoc}
      *
-     * <p>只返回待处理（{@code status=0}）的申请，已同意/已拒绝的不再出现在收件箱。
+     * <p>
+     * 只返回待处理（{@code status=0}）的申请，已同意/已拒绝的不再出现在收件箱。
      */
     @Override
     public List<FriendRequestVo> getFriendRequests() {
@@ -411,6 +442,11 @@ public class SocialServiceImpl implements SocialService {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * 同一对好友只保留一场 {@code sessionType=1} 的私聊：两边都在
+     * {@code chat_session_member} 里即视为已有，不看 {@code peer_user_id} 方向。
+     * 没有则插入一行会话 + 两行成员（自己、对方），未读先写 0。
      */
     @Override
     @Transactional
@@ -419,6 +455,7 @@ public class SocialServiceImpl implements SocialService {
         if (dto == null || dto.getPeerUserId() == null) {
             throw new BizException("对方用户不能为空");
         }
+        // 群聊本期不做
         if (dto.getSessionType() == null || dto.getSessionType() != SESSION_TYPE_PRIVATE) {
             throw new BizException("本期仅支持私聊");
         }
@@ -426,13 +463,18 @@ public class SocialServiceImpl implements SocialService {
         if (curId.equals(peerId)) {
             throw new BizException("不能与自己发起会话");
         }
+        // 查看对方账号是否存在（走 user-service）
         loadUser(peerId);
+        // 查看是否已是好友（friendship 单向查当前用户视角即可，关系是双向各一行）
         if (friendshipMapper.selectByUserIdAndFriendId(curId, peerId) <= 0) {
             throw new BizException("请先添加对方为好友");
         }
+        // 查看是否被对方拉黑、或自己已拉黑对方
         assertNotBlocked(curId, peerId, true);
+        // 查看两人是否已有私聊会话
         ChatSession existing = chatSessionMapper.selectPrivateBetween(curId, peerId);
         if (existing == null) {
+            // 新建会话：peer_user_id 记创建人眼里的对方，查找仍以成员表为准
             ChatSession session = new ChatSession();
             session.setSessionType(SESSION_TYPE_PRIVATE);
             session.setPeerUserId(peerId);
@@ -441,22 +483,32 @@ public class SocialServiceImpl implements SocialService {
             insertMember(session.getId(), peerId);
             existing = session;
         }
+        // 昵称头像现查 Feign，不写进会话表
         return toSessionVo(existing.getId(), peerId);
     }
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * {@code beforeMsgId} 为空取最新一页；有值则先按 Mongo {@code _id} 取出该条的
+     * {@code createdAt}，再查更早的。{@code hasMore} 等于本页条数是否凑满 {@code size}。
+     * 列表时间倒序，{@code msgId} 用 Mongo 主键字符串。
      */
     @Override
     public ChatMessagePageVO listMessages(Long sessionId, String beforeMsgId, Integer size) {
         Long curId = requireCurUserId();
+        // 必须是该会话成员
         requireSessionMember(sessionId, curId);
+        // size 默认 20，最大 50
         int s = size == null || size < 1 ? 20 : Math.min(size, 50);
         List<ChatMessage> rows;
         if (beforeMsgId == null || beforeMsgId.isBlank()) {
+            // 进入聊天页：Mongo 本会话按发送时间 createdAt 倒序，取最新 size 条
             rows = chatMessageRepository.findBySessionIdOrderByCreatedAtDesc(
                     sessionId, PageRequest.of(0, s));
         } else {
+            // 上滑：游标必须属于本会话，否则当成消息不存在
             ChatMessage cursor = chatMessageRepository.findById(beforeMsgId)
                     .orElseThrow(() -> new BizException("消息不存在"));
             if (!sessionId.equals(cursor.getSessionId())) {
@@ -465,6 +517,7 @@ public class SocialServiceImpl implements SocialService {
             rows = chatMessageRepository.findBySessionIdAndCreatedAtBeforeOrderByCreatedAtDesc(
                     sessionId, cursor.getCreatedAt(), PageRequest.of(0, s));
         }
+        // 同一页里对方昵称只 Feign 一次
         Map<Long, String> nickCache = new HashMap<>();
         List<ChatMessageVO> list = new ArrayList<>();
         for (ChatMessage row : rows) {
@@ -479,12 +532,18 @@ public class SocialServiceImpl implements SocialService {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * 每次发送前再查一次拉黑。写入顺序：Mongo 正文 → MySQL 索引 → 会话
+     * {@code last_msg_preview}/{@code last_msg_at}。Mongo 不在本地事务里。
      */
     @Override
     @Transactional
     public ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto) {
         Long curId = requireCurUserId();
+        // 必须是该会话成员
         requireSessionMember(sessionId, curId);
+        // 私聊另一人；查到才做拉黑拦截（成员异常时不误拦）
         Long peerId = chatSessionMemberMapper.selectPeerUserId(sessionId, curId);
         if (peerId != null) {
             assertNotBlocked(curId, peerId, false);
@@ -500,10 +559,12 @@ public class SocialServiceImpl implements SocialService {
             throw new BizException("消息内容不能为空");
         }
         String content = dto.getContent().trim();
+        // IMAGE / EMOJI 不按 1000 字限制；IMAGE 的 content 假定已是 URL
         if ("TEXT".equals(msgType) && content.length() > TEXT_MAX_LENGTH) {
             throw new BizException("文字消息不能超过1000字");
         }
         LocalDateTime now = LocalDateTime.now();
+        // ① 正文进 Mongo，主键回填到 saved.id，对外就是 msgId
         ChatMessage msg = new ChatMessage();
         msg.setSessionId(sessionId);
         msg.setFromUserId(curId);
@@ -513,6 +574,7 @@ public class SocialServiceImpl implements SocialService {
         msg.setCreatedAt(now);
         ChatMessage saved = chatMessageRepository.save(msg);
 
+        // ② 索引进 MySQL，mongo_msg_id 与 ① 对齐
         ChatMessageIndex index = new ChatMessageIndex();
         index.setMongoMsgId(saved.getId());
         index.setSessionId(sessionId);
@@ -520,20 +582,121 @@ public class SocialServiceImpl implements SocialService {
         index.setMsgType(msgType);
         index.setCreatedAt(now);
         chatMessageIndexMapper.insert(index);
+        // ③ 刷新会话列表预览
         chatSessionMapper.updateLastMessage(sessionId, previewOf(msgType, content), now);
 
         Map<Long, String> nickCache = new HashMap<>();
         return toMessageVo(saved, curId, nickCache);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 契约要求须已是好友才能拉黑。先写 {@code user_blacklist}，再 {@code deletePair}
+     * 双向解除好友，这样好友列表立刻看不到对方；发消息仍走原有拉黑拦截。
+     */
+    @Override
+    @Transactional
+    public BlockResultVO blockUser(BlockUserDTO dto) {
+        Long curId = requireCurUserId();
+        if (dto == null || dto.getUserId() == null) {
+            throw new BizException("对方用户不能为空");
+        }
+        Long peerId = dto.getUserId();
+        if (curId.equals(peerId)) {
+            throw new BizException("不能拉黑自己");
+        }
+        // 对方账号须存在
+        loadUser(peerId);
+        // 已经拉黑过则不必再写
+        if (userBlacklistMapper.countPair(curId, peerId) > 0) {
+            throw new BizException("已经在黑名单中");
+        }
+        // 只能拉黑好友
+        if (friendshipMapper.selectByUserIdAndFriendId(curId, peerId) <= 0) {
+            throw new BizException("对方不是你的好友");
+        }
+        UserBlacklist row = new UserBlacklist();
+        row.setUserId(curId);
+        row.setBlockedUid(peerId);
+        userBlacklistMapper.insert(row);
+        // 从好友列表消失；Redis 关注集合由 deletePair 清理
+        friendshipService.deletePair(curId, peerId);
+        BlockResultVO vo = new BlockResultVO();
+        vo.setUserId(peerId);
+        vo.setBlocked(true);
+        return vo;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 只删「我拉黑对方」这一行。不自动加回好友，对方可重新发申请。
+     */
+    @Override
+    @Transactional
+    public void unblockUser(Long userId) {
+        Long curId = requireCurUserId();
+        if (userId == null) {
+            throw new BizException("对方用户不能为空");
+        }
+        if (userBlacklistMapper.deletePair(curId, userId) <= 0) {
+            throw new BizException("不在黑名单中");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 昵称头像现查 Feign；单条查不到时仍返回该项，昵称用「用户」。
+     */
+    @Override
+    public List<BlacklistItemVO> listBlacklist() {
+        Long curId = requireCurUserId();
+        List<UserBlacklist> rows = userBlacklistMapper.selectByUserId(curId);
+        List<BlacklistItemVO> list = new ArrayList<>();
+        for (UserBlacklist row : rows) {
+            BlacklistItemVO vo = new BlacklistItemVO();
+            vo.setUserId(row.getBlockedUid());
+            vo.setBlockedAt(row.getCreatedAt());
+            try {
+                UserInfo user = loadUser(row.getBlockedUid());
+                vo.setNickname(user.getNickname());
+                vo.setAvatarUrl(user.getAvatarUrl());
+            } catch (BizException e) {
+                log.warn("黑名单用户资料查询失败, userId={}", row.getBlockedUid());
+                vo.setNickname("用户");
+            }
+            list.add(vo);
+        }
+        return list;
+    }
+
+    /**
+     * 往会话插入一名成员。私聊建会话时自己、对方各调一次。
+     *
+     * @param sessionId 刚插入的会话 ID
+     * @param userId    成员用户 ID
+     */
     private void insertMember(Long sessionId, Long userId) {
         ChatSessionMember member = new ChatSessionMember();
         member.setSessionId(sessionId);
         member.setUserId(userId);
+        // 未读加减本期不做，建会话一律 0
         member.setUnreadCount(0);
         chatSessionMemberMapper.insert(member);
     }
 
+    /**
+     * 组装创建会话成功体：对方资料现查 user-service。
+     *
+     * @param sessionId 会话 ID
+     * @param peerId    对方用户 ID
+     * @return 前端会话卡片字段
+     */
     private ChatSessionVO toSessionVo(Long sessionId, Long peerId) {
         UserInfo peer = loadUser(peerId);
         ChatSessionVO vo = new ChatSessionVO();
@@ -545,6 +708,12 @@ public class SocialServiceImpl implements SocialService {
         return vo;
     }
 
+    /**
+     * 当前用户必须已在该会话的成员表里，否则不能拉历史、发消息。
+     *
+     * @param sessionId 路径上的会话 ID
+     * @param userId    当前登录用户
+     */
     private void requireSessionMember(Long sessionId, Long userId) {
         if (sessionId == null) {
             throw new BizException("会话不存在");
@@ -559,21 +728,31 @@ public class SocialServiceImpl implements SocialService {
     }
 
     /**
-     * 双向拉黑都禁止会话/发信。
+     * 双向拉黑都禁止建会话 / 发信。黑名单 CRUD 本期没有，表里有数据仍拦截。
      *
-     * @param me       当前用户
-     * @param peer     对方
-     * @param forCreate true 用开会话文案
+     * @param me        当前用户
+     * @param peer      对方
+     * @param forCreate {@code true} 用「无法发起会话」文案，{@code false} 用「发送失败」文案
      */
     private void assertNotBlocked(Long me, Long peer, boolean forCreate) {
+        // 对方拉黑了我
         if (userBlacklistMapper.countPair(peer, me) > 0) {
             throw new BizException(forCreate ? "你已被对方拉黑，无法发起会话" : "消息发送失败，对方已将你拉黑");
         }
+        // 我拉黑了对方
         if (userBlacklistMapper.countPair(me, peer) > 0) {
             throw new BizException(forCreate ? "你已将对方拉黑，无法发起会话" : "消息发送失败，对方已将你拉黑");
         }
     }
 
+    /**
+     * Mongo 文档转对外消息。自己的昵称固定为「我」，对方走 Feign，失败时显示「用户」。
+     *
+     * @param row       Mongo 一行
+     * @param curId     当前用户，用来判断是不是自己发的
+     * @param nickCache 本页对方昵称缓存，避免循环里反复 Feign
+     * @return 列表 / 发送成功体
+     */
     private ChatMessageVO toMessageVo(ChatMessage row, Long curId, Map<Long, String> nickCache) {
         ChatMessageVO vo = new ChatMessageVO();
         vo.setMsgId(row.getId());
@@ -597,13 +776,20 @@ public class SocialServiceImpl implements SocialService {
         return vo;
     }
 
+    /**
+     * 会话表最后一条预览：图片固定「[图片]」，其它截到列宽。
+     *
+     * @param msgType 消息类型
+     * @param content 已 trim 的正文
+     * @return 写入 {@code last_msg_preview} 的短文本
+     */
     private String previewOf(String msgType, String content) {
         if ("IMAGE".equals(msgType)) {
             return "[图片]";
         }
-        if ("EMOJI".equals(msgType)) {
-            return content.length() > PREVIEW_MAX_LENGTH ? content.substring(0, PREVIEW_MAX_LENGTH) : content;
+        if (content.length() > PREVIEW_MAX_LENGTH) {
+            return content.substring(0, PREVIEW_MAX_LENGTH);
         }
-        return content.length() > PREVIEW_MAX_LENGTH ? content.substring(0, PREVIEW_MAX_LENGTH) : content;
+        return content;
     }
 }

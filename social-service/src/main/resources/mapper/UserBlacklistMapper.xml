@@ -10,4 +10,23 @@
           AND blocked_uid = #{blockedUid}
     </select>
 
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.UserBlacklist"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_blacklist (user_id, blocked_uid)
+        VALUES (#{userId}, #{blockedUid})
+    </insert>
+
+    <delete id="deletePair">
+        DELETE FROM user_blacklist
+        WHERE user_id = #{userId}
+          AND blocked_uid = #{blockedUid}
+    </delete>
+
+    <select id="selectByUserId" resultType="com.campus.food.campusfood.entity.UserBlacklist">
+        SELECT id, user_id, blocked_uid, created_at
+        FROM user_blacklist
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
 </mapper>

@@ -15,7 +15,7 @@ spring:
         enabled: true
 
 mybatis:
-  mapper-locations: classpath:mapper/**/*.xml
+  mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.campus.food.campusfood.entity
   configuration:
     map-underscore-to-camel-case: true

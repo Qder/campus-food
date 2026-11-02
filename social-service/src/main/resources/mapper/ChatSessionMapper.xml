@@ -7,6 +7,11 @@
         id, session_type, peer_user_id, group_id, last_msg_preview, last_msg_at, created_at, updated_at
     </sql>
 
+    <!-- 与成员表 JOIN 时必须带别名，否则 id / created_at 会歧义 -->
+    <sql id="Base_Column_List_S">
+        s.id, s.session_type, s.peer_user_id, s.group_id, s.last_msg_preview, s.last_msg_at, s.created_at, s.updated_at
+    </sql>
+
     <insert id="insert" parameterType="com.campus.food.campusfood.entity.ChatSession"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO chat_session (session_type, peer_user_id, group_id)
@@ -22,7 +27,7 @@
 
     <select id="selectPrivateBetween" resultType="com.campus.food.campusfood.entity.ChatSession">
         SELECT
-        <include refid="Base_Column_List"/>
+        <include refid="Base_Column_List_S"/>
         FROM chat_session s
         INNER JOIN chat_session_member a ON a.session_id = s.id AND a.user_id = #{userId}
         INNER JOIN chat_session_member b ON b.session_id = s.id AND b.user_id = #{peerUserId}

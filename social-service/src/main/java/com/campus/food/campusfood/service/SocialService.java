@@ -2,8 +2,11 @@ package com.campus.food.campusfood.service;
 
 import java.util.List;
 
+import com.campus.food.campusfood.dto.BlockUserDTO;
 import com.campus.food.campusfood.dto.CreateSessionDTO;
 import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.vo.BlacklistItemVO;
+import com.campus.food.campusfood.vo.BlockResultVO;
 import com.campus.food.campusfood.vo.ChatMessagePageVO;
 import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
@@ -11,7 +14,7 @@ import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
 
 /**
- * 社交业务门面：编排好友申请、同意/拒绝与好友关系维护。
+ * 社交业务门面：编排好友申请、同意/拒绝、好友关系、黑名单与私聊。
  *
  * <p>底层 {@code *ServiceImpl} 只做单表存取，申请判重、隐私校验、
  * 双向关系与 Redis 关注集合的一致性都在这一层处理。
@@ -102,4 +105,26 @@ public interface SocialService {
      * @return 落库后的消息
      */
     ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto);
+
+    /**
+     * 拉黑对方：须已是好友、尚未拉黑。写入 {@code user_blacklist} 后双向解除好友。
+     *
+     * @param dto 对方用户 ID
+     * @return {@code userId} + {@code blocked=true}
+     */
+    BlockResultVO blockUser(BlockUserDTO dto);
+
+    /**
+     * 移出黑名单，不自动恢复好友；对方可重新发申请。
+     *
+     * @param userId 被拉黑的用户 ID
+     */
+    void unblockUser(Long userId);
+
+    /**
+     * 当前用户拉黑的人，按拉黑时间倒序。
+     *
+     * @return 名单；没有返回空列表
+     */
+    List<BlacklistItemVO> listBlacklist();
 }
