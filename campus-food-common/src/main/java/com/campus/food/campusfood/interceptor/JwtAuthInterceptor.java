@@ -12,7 +12,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
  * 校验请求头中的 JWT，并将用户写入 {@link UserContext}。
- * 美食浏览类 GET 放行，其余业务接口必须带有效令牌。
+ * 美食浏览类 GET、拼单列表/详情 GET 放行，其余业务接口必须带有效令牌。
  *
  * @author yang
  * @since 2026-10-16
@@ -30,7 +30,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 解析并校验令牌。公开的美食浏览 GET 直接放行，其余请求成功后写入 {@link UserContext}。
+     * 解析并校验令牌。公开的美食浏览 GET、拼单列表/详情 GET 直接放行，其余请求成功后写入 {@link UserContext}。
      *
      * @param request  当前请求
      * @param response 校验失败时写入 401 JSON，不进入控制器
@@ -43,6 +43,12 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
                              @NonNull HttpServletResponse response,
                              @NonNull Object handler) throws Exception {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        // 拼单列表/详情 GET 公开；有 Token 则绑定用户，用来填 joined/isCreator
+        if (isPublicMealActivityGet(request)) {
+            bindUserIfTokenPresent(request);
             return true;
         }
 
@@ -88,6 +94,47 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
                                 @NonNull Object handler,
                                 @Nullable Exception ex) {
         UserContext.clear();
+    }
+
+    /**
+     * 拼单列表、详情 GET 可未登录访问。
+     *
+     * <p>只匹配 {@code /social/meal-activities} 和 {@code /social/meal-activities/{数字id}}，
+     * 不含 {@code /members}、{@code /feedback}、{@code /join} 等。
+     */
+    private boolean isPublicMealActivityGet(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = requestPathWithoutQuery(request);
+        if (uri == null) {
+            return false;
+        }
+        return uri.matches(".*/social/meal-activities/?$")
+                || uri.matches(".*/social/meal-activities/\\d+/?$");
+    }
+
+    /**
+     * 公开接口上可选登录：有合法 Token 则写入 {@link UserContext}，没有或无效则当游客。
+     */
+    private void bindUserIfTokenPresent(HttpServletRequest request) {
+        String headerValue = request.getHeader(jwtUtil.getHeaderName());
+        String token = jwtUtil.resolveToken(headerValue);
+        if (token == null) {
+            return;
+        }
+        try {
+            if (!jwtUtil.validateToken(token)) {
+                return;
+            }
+            Long userId = jwtUtil.getUserId(token);
+            if (userId == null) {
+                return;
+            }
+            UserContext.set(userId, jwtUtil.getRoleId(token));
+        } catch (JwtException | IllegalArgumentException e) {
+            // 公开浏览不因坏 Token 拦下
+        }
     }
 
     /** 公开美食浏览：分类/列表/搜索、详情、评价列表（均为 GET） */

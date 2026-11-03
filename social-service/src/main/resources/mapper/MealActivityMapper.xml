@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.MealActivityMapper">
+
+    <sql id="Base_Column_List">
+        id, creator_id, title, meet_time, meet_place, food_type,
+        related_food_id, related_merchant_id, max_members, current_members,
+        description, signup_deadline, status, created_at, updated_at
+    </sql>
+
+    <sql id="Filter_Where">
+        <where>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="foodType != null and foodType != ''">
+                AND food_type = #{foodType}
+            </if>
+            <if test="creatorId != null">
+                AND creator_id = #{creatorId}
+            </if>
+            <if test="joinedUserId != null">
+                AND EXISTS (
+                    SELECT 1 FROM meal_activity_member m
+                    WHERE m.activity_id = meal_activity.id
+                      AND m.user_id = #{joinedUserId}
+                      AND m.status = 1
+                )
+            </if>
+        </where>
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.MealActivity"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO meal_activity (
+            creator_id, title, meet_time, meet_place, food_type,
+            related_food_id, related_merchant_id, max_members, current_members,
+            description, signup_deadline, status
+        ) VALUES (
+            #{creatorId}, #{title}, #{meetTime}, #{meetPlace}, #{foodType},
+            #{relatedFoodId}, #{relatedMerchantId}, #{maxMembers}, #{currentMembers},
+            #{description}, #{signupDeadline}, #{status}
+        )
+    </insert>
+
+    <select id="selectById" resultType="com.campus.food.campusfood.entity.MealActivity">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meal_activity
+        WHERE id = #{id}
+    </select>
+
+    <select id="countByFilter" resultType="int">
+        SELECT COUNT(*)
+        FROM meal_activity
+        <include refid="Filter_Where"/>
+    </select>
+
+    <select id="selectByFilter" resultType="com.campus.food.campusfood.entity.MealActivity">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meal_activity
+        <include refid="Filter_Where"/>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE meal_activity
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- SET 里用原值：current_members + 1 >= max_members 表示这次报完刚好满 -->
+    <update id="tryIncrementMembers">
+        UPDATE meal_activity
+        SET current_members = current_members + 1,
+            status = CASE
+                WHEN current_members + 1 &gt;= max_members THEN 1
+                ELSE status
+            END
+        WHERE id = #{id}
+          AND status = 0
+          AND current_members &lt; max_members
+    </update>
+
+    <update id="decrementMembers">
+        UPDATE meal_activity
+        SET current_members = current_members - 1,
+            status = CASE
+                WHEN status = 1 AND current_members - 1 &lt; max_members THEN 0
+                ELSE status
+            END
+        WHERE id = #{id}
+          AND current_members &gt; 1
+    </update>
+
+</mapper>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.MealActivityMemberMapper">
+
+    <sql id="Base_Column_List">
+        id, activity_id, user_id, role, status, joined_at
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.MealActivityMember"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO meal_activity_member (activity_id, user_id, role, status)
+        VALUES (#{activityId}, #{userId}, #{role}, #{status})
+    </insert>
+
+    <select id="selectByActivityAndUser"
+            resultType="com.campus.food.campusfood.entity.MealActivityMember">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meal_activity_member
+        WHERE activity_id = #{activityId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectJoinedByActivity"
+            resultType="com.campus.food.campusfood.entity.MealActivityMember">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meal_activity_member
+        WHERE activity_id = #{activityId}
+          AND status = 1
+        ORDER BY joined_at ASC
+    </select>
+
+    <select id="selectAllByActivity"
+            resultType="com.campus.food.campusfood.entity.MealActivityMember">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM meal_activity_member
+        WHERE activity_id = #{activityId}
+        ORDER BY joined_at ASC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE meal_activity_member
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.MealActivityFeedbackMapper">
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.MealActivityFeedback"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO meal_activity_feedback (activity_id, from_user_id, to_user_id, score, content)
+        VALUES (#{activityId}, #{fromUserId}, #{toUserId}, #{score}, #{content})
+    </insert>
+
+    <select id="selectByActivityId"
+            resultType="com.campus.food.campusfood.entity.MealActivityFeedback">
+        SELECT id, activity_id, from_user_id, to_user_id, score, content, created_at
+        FROM meal_activity_feedback
+        WHERE activity_id = #{activityId}
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="countByFromTo" resultType="int">
+        SELECT COUNT(*)
+        FROM meal_activity_feedback
+        WHERE activity_id = #{activityId}
+          AND from_user_id = #{fromUserId}
+          <choose>
+              <when test="toUserId == null">
+                  AND to_user_id IS NULL
+              </when>
+              <otherwise>
+                  AND to_user_id = #{toUserId}
+              </otherwise>
+          </choose>
+    </select>
+
+</mapper>
