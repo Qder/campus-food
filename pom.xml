@@ -23,6 +23,7 @@
         <module>food-service</module>
         <module>merchant-service</module>
         <module>social-service</module>
+        <module>order-service</module>
     </modules>
 
     <properties>

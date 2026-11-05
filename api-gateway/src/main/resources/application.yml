@@ -25,6 +25,10 @@ spring:
               uri: lb://social-service
               predicates:
                 - Path=/social/**
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/order/**
 
 eureka:
   client:
