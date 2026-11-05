@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * 订单服务入口：购物车、下单、支付、商家接单（骨架阶段仅探活接口）。
+ * 订单服务入口：下单、支付、商家接单（课设 7.6）。
  *
  * @author yang
  * @since 2026-11-05
