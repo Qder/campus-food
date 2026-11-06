@@ -154,4 +154,22 @@ public interface FoodItemMapper {
                                          @Param("categoryId") Integer categoryId,
                                          @Param("offset") int offset,
                                          @Param("size") int size);
+
+    /**
+     * 下单扣库存。须上架且库存足够，否则影响行数为 0。
+     *
+     * @param id  美食 ID
+     * @param qty 扣减数量
+     * @return 影响行数
+     */
+    int tryDecrementStock(@Param("id") Long id, @Param("qty") int qty);
+
+    /**
+     * 取消订单回补库存。
+     *
+     * @param id  美食 ID
+     * @param qty 回补数量
+     * @return 影响行数
+     */
+    int restoreStock(@Param("id") Long id, @Param("qty") int qty);
 }

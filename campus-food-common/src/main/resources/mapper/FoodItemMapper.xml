@@ -207,4 +207,21 @@
         WHERE id = #{id}
     </update>
 
+    <update id="tryDecrementStock">
+        UPDATE food_item
+        SET stock = stock - #{qty},
+            sales_count = sales_count + #{qty}
+        WHERE id = #{id}
+          AND deleted = 0
+          AND status = 1
+          AND stock &gt;= #{qty}
+    </update>
+
+    <update id="restoreStock">
+        UPDATE food_item
+        SET stock = stock + #{qty}
+        WHERE id = #{id}
+          AND deleted = 0
+    </update>
+
 </mapper>
