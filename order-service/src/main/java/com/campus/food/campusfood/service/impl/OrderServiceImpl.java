@@ -17,9 +17,12 @@ import com.campus.food.campusfood.service.OrderService;
 @Service
 public class OrderServiceImpl implements OrderService {
 
-    private final FoodOrderMapper foodOrderMapper;
-    private final OrderItemMapper orderItemMapper;
-    private final PaymentRecordMapper paymentRecordMapper;
+    @Autowired
+    private FoodOrderMapper foodOrderMapper;
+    @Autowired
+    private OrderItemMapper orderItemMapper;
+    @Autowired
+    private PaymentRecordMapper paymentRecordMapper;
 
     /**
      * @param foodOrderMapper     订单主表
@@ -28,8 +31,8 @@ public class OrderServiceImpl implements OrderService {
      */
     @Autowired
     public OrderServiceImpl(FoodOrderMapper foodOrderMapper,
-                            OrderItemMapper orderItemMapper,
-                            PaymentRecordMapper paymentRecordMapper) {
+            OrderItemMapper orderItemMapper,
+            PaymentRecordMapper paymentRecordMapper) {
         this.foodOrderMapper = foodOrderMapper;
         this.orderItemMapper = orderItemMapper;
         this.paymentRecordMapper = paymentRecordMapper;
