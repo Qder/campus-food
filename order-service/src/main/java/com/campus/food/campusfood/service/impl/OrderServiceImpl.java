@@ -32,10 +32,14 @@ import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.OrderItemMapper;
 import com.campus.food.campusfood.mapper.PaymentRecordMapper;
 import com.campus.food.campusfood.service.OrderService;
+import com.campus.food.campusfood.vo.OrderDetailVO;
+import com.campus.food.campusfood.vo.OrderItemLineVO;
 import com.campus.food.campusfood.vo.OrderPlaceVO;
+import com.campus.food.campusfood.vo.OrderSummaryVO;
+import com.campus.food.campusfood.vo.PageVO;
 
 /**
- * 订单业务。本期只实现详情页下单并 MOCK 支付。
+ * 订单业务：下单支付、用户查状态。
  *
  * @author yang
  * @since 2026-11-05
@@ -49,6 +53,9 @@ public class OrderServiceImpl implements OrderService {
     private static final int MERCHANT_OPEN = 1;
 
     private static final String STATUS_PAID = "PAID";
+    private static final String STATUS_ACCEPTED = "ACCEPTED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String PAY_MOCK = "MOCK";
     private static final int PAY_STATUS_SUCCESS = 1;
 
@@ -58,6 +65,10 @@ public class OrderServiceImpl implements OrderService {
     private static final int MAX_QTY = 99;
     private static final int MAX_REMARK_LEN = 255;
     private static final int MAX_ADDRESS_LEN = 255;
+
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 50;
 
     private static final String IDEM_KEY_PREFIX = "order:idem:";
 
@@ -178,6 +189,52 @@ public class OrderServiceImpl implements OrderService {
         return vo;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>只查当前学生自己的单，可按状态筛。
+     */
+    @Override
+    public PageVO<OrderSummaryVO> listMyOrders(String status, Integer page, Integer size) {
+        Long userId = requireStudentUser("只有学生可以查看自己的订单");
+        String st = normalizeStatus(status);
+        int p = (page == null || page < 1) ? DEFAULT_PAGE : page;
+        int s = (size == null || size < 1) ? DEFAULT_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int total = foodOrderMapper.countByUserId(userId, st);
+        List<FoodOrder> rows = foodOrderMapper.selectByUserId(userId, st, (p - 1) * s, s);
+        List<OrderSummaryVO> list = new ArrayList<>();
+        for (FoodOrder row : rows) {
+            list.add(toSummaryVo(row, loadShopName(row.getMerchantId())));
+        }
+        PageVO<OrderSummaryVO> pageVO = new PageVO<>();
+        pageVO.setTotal(total);
+        pageVO.setPage(p);
+        pageVO.setSize(s);
+        pageVO.setList(list);
+        return pageVO;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>不是本人的订单当无权查看。
+     */
+    @Override
+    public OrderDetailVO getMyOrderDetail(Long orderId) {
+        Long userId = requireStudentUser("只有学生可以查看自己的订单");
+        if (orderId == null) {
+            throw new BizException("orderId 不能为空");
+        }
+        FoodOrder order = foodOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+        if (!userId.equals(order.getUserId())) {
+            throw new BizException("无权查看该订单");
+        }
+        return toDetailVo(order);
+    }
+
     private void validatePlaceOrder(PlaceOrderDTO dto) {
         if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
             throw new BizException("请至少选择一件商品");
@@ -257,6 +314,68 @@ public class OrderServiceImpl implements OrderService {
 
     private static String blankToNull(String s) {
         return StringUtils.hasText(s) ? s.trim() : null;
+    }
+
+    private String normalizeStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return null;
+        }
+        String st = status.trim();
+        if (!STATUS_PAID.equals(st) && !STATUS_ACCEPTED.equals(st)
+                && !STATUS_COMPLETED.equals(st) && !STATUS_CANCELLED.equals(st)) {
+            throw new BizException("status 取值不合法");
+        }
+        return st;
+    }
+
+    private String loadShopName(Long merchantId) {
+        Merchant m = merchantMapper.selectById(merchantId);
+        return m == null ? "店铺" : m.getShopName();
+    }
+
+    private OrderSummaryVO toSummaryVo(FoodOrder row, String shopName) {
+        OrderSummaryVO vo = new OrderSummaryVO();
+        vo.setOrderId(row.getId());
+        vo.setOrderNo(row.getOrderNo());
+        vo.setMerchantId(row.getMerchantId());
+        vo.setShopName(shopName);
+        vo.setPayAmount(row.getPayAmount());
+        vo.setDeliveryType(row.getDeliveryType());
+        vo.setStatus(row.getStatus());
+        vo.setCreatedAt(row.getCreatedAt());
+        return vo;
+    }
+
+    private OrderDetailVO toDetailVo(FoodOrder order) {
+        OrderDetailVO vo = new OrderDetailVO();
+        vo.setOrderId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setMerchantId(order.getMerchantId());
+        vo.setShopName(loadShopName(order.getMerchantId()));
+        vo.setTotalAmount(order.getTotalAmount());
+        vo.setPayAmount(order.getPayAmount());
+        vo.setDeliveryType(order.getDeliveryType());
+        vo.setDeliveryAddress(order.getDeliveryAddress());
+        vo.setRemark(order.getRemark());
+        vo.setStatus(order.getStatus());
+        vo.setCancelReason(order.getCancelReason());
+        vo.setPaidAt(order.getPaidAt());
+        vo.setAcceptedAt(order.getAcceptedAt());
+        vo.setCompletedAt(order.getCompletedAt());
+        vo.setCancelledAt(order.getCancelledAt());
+        vo.setCreatedAt(order.getCreatedAt());
+        List<OrderItemLineVO> lines = new ArrayList<>();
+        for (OrderItem row : orderItemMapper.selectByOrderId(order.getId())) {
+            OrderItemLineVO line = new OrderItemLineVO();
+            line.setFoodId(row.getFoodId());
+            line.setFoodName(row.getFoodName());
+            line.setUnitPrice(row.getUnitPrice());
+            line.setQuantity(row.getQuantity());
+            line.setAmount(row.getAmount());
+            lines.add(line);
+        }
+        vo.setItems(lines);
+        return vo;
     }
 
     private Long requireStudentUser(String message) {
