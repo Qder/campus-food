@@ -27,7 +27,7 @@ public class PlaceOrderDTO {
     /** 用户备注，可空，≤ 255 字 */
     private String remark;
 
-    /** 支付渠道：本期实现 {@code MOCK} */
+    /** 支付渠道：默认 {@code WECHAT}；也可传 {@code MOCK} */
     private String payChannel;
 
     /** 前端生成的幂等令牌，防重复提交 */

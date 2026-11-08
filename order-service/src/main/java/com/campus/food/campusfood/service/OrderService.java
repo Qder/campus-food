@@ -39,4 +39,12 @@ public interface OrderService {
      * @return 详情含明细
      */
     OrderDetailVO getMyOrderDetail(Long orderId);
+
+    PageVO<OrderSummaryVO> listMerchantOrders(String status, Integer page, Integer size);
+
+    void acceptOrder(Long orderId);
+
+    void cancelOrder(Long orderId);
+
+    void completeOrder(Long orderId);
 }

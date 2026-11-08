@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,10 @@ import com.campus.food.campusfood.vo.PageVO;
 @Service
 public class OrderServiceImpl implements OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderServiceImpl.class);
+
     private static final int ROLE_USER = 1;
+    private static final int ROLE_MERCHANT = 2;
 
     private static final int MERCHANT_AUDIT_PASS = 1;
     private static final int MERCHANT_OPEN = 1;
@@ -56,6 +61,7 @@ public class OrderServiceImpl implements OrderService {
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String PAY_WECHAT = "WECHAT";
     private static final String PAY_MOCK = "MOCK";
     private static final int PAY_STATUS_SUCCESS = 1;
 
@@ -80,20 +86,20 @@ public class OrderServiceImpl implements OrderService {
     private final StringRedisTemplate stringRedisTemplate;
 
     /**
-     * @param foodOrderMapper       订单主表
-     * @param orderItemMapper       明细
-     * @param paymentRecordMapper   支付记录
-     * @param foodItemMapper        菜品（扣库存）
-     * @param merchantMapper        店铺营业状态
-     * @param stringRedisTemplate   幂等令牌
+     * @param foodOrderMapper     订单主表
+     * @param orderItemMapper     明细
+     * @param paymentRecordMapper 支付记录
+     * @param foodItemMapper      菜品（扣库存）
+     * @param merchantMapper      店铺营业状态
+     * @param stringRedisTemplate 幂等令牌
      */
     @Autowired
     public OrderServiceImpl(FoodOrderMapper foodOrderMapper,
-                            OrderItemMapper orderItemMapper,
-                            PaymentRecordMapper paymentRecordMapper,
-                            FoodItemMapper foodItemMapper,
-                            MerchantMapper merchantMapper,
-                            StringRedisTemplate stringRedisTemplate) {
+            OrderItemMapper orderItemMapper,
+            PaymentRecordMapper paymentRecordMapper,
+            FoodItemMapper foodItemMapper,
+            MerchantMapper merchantMapper,
+            StringRedisTemplate stringRedisTemplate) {
         this.foodOrderMapper = foodOrderMapper;
         this.orderItemMapper = orderItemMapper;
         this.paymentRecordMapper = paymentRecordMapper;
@@ -105,7 +111,8 @@ public class OrderServiceImpl implements OrderService {
     /**
      * {@inheritDoc}
      *
-     * <p>校验菜品与店铺后扣库存，写主表/明细/支付记录，MOCK 直接 {@code PAID}。
+     * <p>
+     * 校验菜品与店铺后扣库存，写主表/明细/支付记录，MOCK 直接 {@code PAID}。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -171,11 +178,12 @@ public class OrderServiceImpl implements OrderService {
             orderItemMapper.insert(item);
         }
 
+        String payChannel = resolvePayChannel(dto.getPayChannel());
         PaymentRecord pay = new PaymentRecord();
         pay.setOrderId(order.getId());
         pay.setOrderNo(orderNo);
-        pay.setPayChannel(PAY_MOCK);
-        pay.setTradeNo("MOCK-" + orderNo);
+        pay.setPayChannel(payChannel);
+        pay.setTradeNo(payChannel + "-" + orderNo);
         pay.setAmount(total);
         pay.setStatus(PAY_STATUS_SUCCESS);
         pay.setPaidAt(now);
@@ -192,7 +200,8 @@ public class OrderServiceImpl implements OrderService {
     /**
      * {@inheritDoc}
      *
-     * <p>只查当前学生自己的单，可按状态筛。
+     * <p>
+     * 只查当前学生自己的单，可按状态筛。
      */
     @Override
     public PageVO<OrderSummaryVO> listMyOrders(String status, Integer page, Integer size) {
@@ -217,7 +226,8 @@ public class OrderServiceImpl implements OrderService {
     /**
      * {@inheritDoc}
      *
-     * <p>不是本人的订单当无权查看。
+     * <p>
+     * 不是本人的订单当无权查看。
      */
     @Override
     public OrderDetailVO getMyOrderDetail(Long orderId) {
@@ -255,9 +265,7 @@ public class OrderServiceImpl implements OrderService {
         if (!StringUtils.hasText(dto.getClientOrderToken())) {
             throw new BizException("缺少 clientOrderToken");
         }
-        if (!PAY_MOCK.equals(dto.getPayChannel())) {
-            throw new BizException("暂不支持该支付方式");
-        }
+        resolvePayChannel(dto.getPayChannel());
     }
 
     private Map<Long, Integer> mergeLines(List<OrderLineDTO> items) {
@@ -299,10 +307,16 @@ public class OrderServiceImpl implements OrderService {
 
     private void assertIdempotent(Long userId, String token) {
         String key = IDEM_KEY_PREFIX + userId + ":" + token.trim();
-        Boolean ok = stringRedisTemplate.opsForValue()
-                .setIfAbsent(key, "1", Duration.ofMinutes(30));
-        if (Boolean.FALSE.equals(ok)) {
-            throw new BizException("请勿重复提交订单");
+        try {
+            Boolean ok = stringRedisTemplate.opsForValue()
+                    .setIfAbsent(key, "1", Duration.ofMinutes(30));
+            if (Boolean.FALSE.equals(ok)) {
+                throw new BizException("请勿重复提交订单");
+            }
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Redis 不可用，跳过下单幂等校验: {}", e.getMessage());
         }
     }
 
@@ -310,6 +324,18 @@ public class OrderServiceImpl implements OrderService {
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int rnd = ThreadLocalRandom.current().nextInt(100, 1000);
         return "CF" + time + String.format("%04d", userId % 10000) + rnd;
+    }
+
+    /** 未传渠道时默认微信支付；仍模拟成功，不调微信接口。 */
+    private static String resolvePayChannel(String payChannel) {
+        if (!StringUtils.hasText(payChannel)) {
+            return PAY_WECHAT;
+        }
+        String channel = payChannel.trim().toUpperCase();
+        if (PAY_WECHAT.equals(channel) || PAY_MOCK.equals(channel)) {
+            return channel;
+        }
+        throw new BizException("暂不支持该支付方式");
     }
 
     private static String blankToNull(String s) {
@@ -390,6 +416,28 @@ public class OrderServiceImpl implements OrderService {
         return curId;
     }
 
+    private Long requireMerchantUser(String message) {
+        Long curId = UserContext.getUserId();
+        if (curId == null) {
+            throw new BizException("请先登录");
+        }
+        if (UserContext.getRoleId() == null || UserContext.getRoleId() != ROLE_MERCHANT) {
+            throw new BizException(message);
+        }
+        List<Merchant> shops = merchantMapper.selectByOwnerUserId(curId);
+        if (shops == null || shops.isEmpty()) {
+            throw new BizException("尚未入驻店铺");
+        }
+        return shops.get(0).getId();
+    }
+
+    /** 当前登录商家是否拥有该订单所属店铺。 */
+    private void assertMerchantOwnsOrder(Long merchantId, FoodOrder order) {
+        if (merchantId == null || order.getMerchantId() == null || !merchantId.equals(order.getMerchantId())) {
+            throw new BizException("该订单不属于你的店铺");
+        }
+    }
+
     private static final class ResolvedLine {
         private final FoodItem food;
         private final int quantity;
@@ -399,6 +447,106 @@ public class OrderServiceImpl implements OrderService {
             this.food = food;
             this.quantity = quantity;
             this.amount = amount;
+        }
+    }
+
+    @Override
+    public PageVO<OrderSummaryVO> listMerchantOrders(String status, Integer page, Integer size) {
+        Long merchantId = requireMerchantUser("只有商家可以查看订单");
+        String st = normalizeStatus(status);
+        int p = (page == null || page < 1) ? DEFAULT_PAGE : page;
+        int s = (size == null || size < 1) ? DEFAULT_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int total = foodOrderMapper.countByMerchantId(merchantId, st);
+        List<FoodOrder> rows = foodOrderMapper.selectByMerchantId(merchantId, st, (p - 1) * s, s);
+        List<OrderSummaryVO> list = new ArrayList<>();
+        for (FoodOrder row : rows) {
+            list.add(toSummaryVo(row, loadShopName(row.getMerchantId())));
+        }
+        PageVO<OrderSummaryVO> pageVO = new PageVO<>();
+        pageVO.setTotal(total);
+        pageVO.setPage(p);
+        pageVO.setSize(s);
+        pageVO.setList(list);
+        return pageVO;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void acceptOrder(Long orderId) {
+        Long merchantId = requireMerchantUser("只有商家可以接单");
+        if (orderId == null) {
+            throw new BizException("orderId 不能为空");
+        }
+        FoodOrder order = foodOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+        assertMerchantOwnsOrder(merchantId, order);
+        if (!STATUS_PAID.equals(order.getStatus())) {
+            throw new BizException("只有待接单的已支付订单可以接单");
+        }
+        FoodOrder update = new FoodOrder();
+        update.setId(orderId);
+        update.setStatus(STATUS_ACCEPTED);
+        update.setAcceptedAt(LocalDateTime.now());
+        if (foodOrderMapper.updateStatus(update) != 1) {
+            throw new BizException("接单失败");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelOrder(Long orderId) {
+        Long merchantId = requireMerchantUser("只有商家可以取消订单");
+        if (orderId == null) {
+            throw new BizException("orderId 不能为空");
+        }
+
+        FoodOrder order = foodOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+        assertMerchantOwnsOrder(merchantId, order);
+        if (!STATUS_PAID.equals(order.getStatus())) {
+            throw new BizException("商家已接单或订单已结束，无法拒单");
+        }
+
+        FoodOrder update = new FoodOrder();
+        update.setId(orderId);
+        update.setStatus(STATUS_CANCELLED);
+        update.setCancelledAt(LocalDateTime.now());
+        if (foodOrderMapper.updateStatus(update) != 1) {
+            throw new BizException("取消失败");
+        }
+
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        for (OrderItem item : items) {
+            foodItemMapper.restoreStock(item.getFoodId(), item.getQuantity());
+        }
+    }
+
+    @Override
+    public void completeOrder(Long orderId) {
+        Long merchantId = requireMerchantUser("只有商家可以完成订单");
+        if (orderId == null) {
+            throw new BizException("orderId 不能为空");
+        }
+
+        FoodOrder order = foodOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+        assertMerchantOwnsOrder(merchantId, order);
+        if (!STATUS_ACCEPTED.equals(order.getStatus())) {
+            throw new BizException("只有已接单的订单可以完成");
+        }
+
+        FoodOrder update = new FoodOrder();
+        update.setId(orderId);
+        update.setStatus(STATUS_COMPLETED);
+        update.setCompletedAt(LocalDateTime.now());
+        if (foodOrderMapper.updateStatus(update) != 1) {
+            throw new BizException("完成失败");
         }
     }
 }

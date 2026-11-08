@@ -58,4 +58,31 @@ public class OrderController {
     public OrderDetailVO getMyOrderDetail(@PathVariable("orderId") Long orderId) {
         return orderService.getMyOrderDetail(orderId);
     }
+
+    // 商家查看订单列表
+    @GetMapping("/merchant/orders")
+    public PageVO<OrderSummaryVO> listMerchantOrders(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return orderService.listMerchantOrders(status, page, size);
+    }
+
+    // 商家接单
+    @PostMapping("/merchant/orders/{orderId}/accept")
+    public void acceptOrder(@PathVariable("orderId") Long orderId) {
+        orderService.acceptOrder(orderId);
+    }
+
+    // 商家取消订单
+    @PostMapping("/merchant/orders/{orderId}/cancel")
+    public void cancelOrder(@PathVariable("orderId") Long orderId) {
+        orderService.cancelOrder(orderId);
+    }
+
+    // 商家完成订单
+    @PostMapping("/merchant/orders/{orderId}/complete")
+    public void completeOrder(@PathVariable("orderId") Long orderId) {
+        orderService.completeOrder(orderId);
+    }
 }
