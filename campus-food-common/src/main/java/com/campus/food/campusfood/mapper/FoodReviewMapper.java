@@ -1,5 +1,6 @@
 package com.campus.food.campusfood.mapper;
 
+import com.campus.food.campusfood.dto.FoodRatingPair;
 import com.campus.food.campusfood.entity.FoodReview;
 import com.campus.food.campusfood.vo.FoodReviewVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -43,4 +44,11 @@ public interface FoodReviewMapper {
     List<FoodReviewVO> selectVisibleByFoodId(@Param("foodId") Long foodId,
                                             @Param("offset") int offset,
                                             @Param("size") int size);
+
+    /**
+     * 全部可见评价的评分对，构建协同过滤矩阵与训练 MLP。
+     *
+     * @return 用户-菜品-评分；无数据返回空列表
+     */
+    List<FoodRatingPair> selectRatingPairs();
 }

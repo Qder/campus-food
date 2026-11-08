@@ -40,4 +40,11 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="selectRatingPairs" resultType="com.campus.food.campusfood.dto.FoodRatingPair">
+        SELECT user_id AS userId, food_id AS foodId, score
+        FROM food_review
+        WHERE audit_status = 1
+          AND status = 1
+    </select>
+
 </mapper>
