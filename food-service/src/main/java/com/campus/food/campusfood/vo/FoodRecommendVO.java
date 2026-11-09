@@ -3,7 +3,7 @@ package com.campus.food.campusfood.vo;
 import lombok.Data;
 
 /**
- * 规则推荐的单条结果。
+ * 推荐结果的单条。
  *
  * @author yang
  * @since 2026-10-16

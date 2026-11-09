@@ -82,11 +82,11 @@ public class FoodController {
     }
 
     /**
-     * 规则推荐：须登录且已设置口味偏好。
+     * 协同过滤 + MLP 推荐，须登录。无行为时回退规则或热门。
      *
      * @param limit 返回条数，可选，默认 10，最大 50
      * @return 按推荐分倒序的美食列表
-     * @throws BizException 未登录、用户不存在或未设置口味时
+     * @throws BizException 未登录时
      */
     @GetMapping("/recommend")
     public List<FoodRecommendVO> recommend(@RequestParam(required = false) Integer limit) {

@@ -50,14 +50,12 @@ public interface FoodService {
     FoodItemVO getById(Long id);
 
     /**
-     * 规则推荐：须登录且已设置口味；加权排序并过滤忌口。
-     *
-     * <p>用户口味与忌口通过 user-service 内部接口获取。
+     * 个性化推荐：须登录。协同过滤 + MLP；无浏览/评价时回退口味规则或热门，不因未填口味报错。
      *
      * @param userId 当前用户，不可为 null
      * @param limit  返回条数，默认 10，最大 50
      * @return 按推荐分倒序的美食列表
-     * @throws com.campus.food.campusfood.exception.BizException 未登录、用户不存在或未设置口味时
+     * @throws com.campus.food.campusfood.exception.BizException 未登录时
      */
     List<FoodRecommendVO> recommend(Long userId, Integer limit);
 }

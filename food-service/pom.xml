@@ -9,7 +9,7 @@
     </parent>
     <artifactId>food-service</artifactId>
     <name>food-service</name>
-    <description>美食服务：浏览、评价、规则推荐</description>
+    <description>美食服务：浏览、评价、协同过滤与 MLP 推荐</description>
 
     <dependencies>
         <dependency>

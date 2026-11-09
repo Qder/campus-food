@@ -2,15 +2,12 @@ package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.entity.FoodCategory;
-import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.exception.BizException;
-import com.campus.food.campusfood.feign.UserFeignClient;
-import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodCategoryMapper;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.service.FoodService;
-import com.campus.food.campusfood.service.util.FoodRecommendScorer;
-import com.campus.food.campusfood.util.TagTextUtil;
+import com.campus.food.campusfood.service.recommend.RecommendService;
+import com.campus.food.campusfood.service.recommend.RecommendSignals;
 import com.campus.food.campusfood.vo.FoodCategoryVO;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodRecommendVO;
@@ -26,14 +23,12 @@ import java.util.List;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 美食浏览与推荐实现。
  *
  * <p>列表与搜索采用 Redis Cache-Aside；登录用户查看详情时写入浏览历史 List。
- * 推荐走课设规则打分：由 {@link FoodRecommendScorer} 加权后排序，并用 {@link TagTextUtil} 过滤忌口；
- * 用户口味通过 {@link UserFeignClient} 从 user-service 拉取。
+ * 推荐委托 {@link RecommendService}：协同过滤 + MLP，冷启动回退规则或热门。
  *
  * @author yang
  * @since 2026-10-16
@@ -65,7 +60,7 @@ public class FoodServiceImpl implements FoodService {
     private FoodItemMapper foodItemMapper;
 
     @Autowired
-    private UserFeignClient userFeignClient;
+    private RecommendService recommendService;
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
@@ -199,7 +194,7 @@ public class FoodServiceImpl implements FoodService {
         if (userId != null) {
             try {
                 // 构建redis key
-                String browseKey = "food:browse:" + userId;
+                String browseKey = RecommendSignals.browseKey(userId);
                 // 将美食id添加到redis列表中
                 stringRedisTemplate.opsForList().leftPush(browseKey, String.valueOf(id));
                 // 修剪列表，只保留前50条记录，防止列表过大
@@ -213,112 +208,14 @@ public class FoodServiceImpl implements FoodService {
 
     /**
      * {@inheritDoc}
-     *
-     * <p>从候选池打分排序；口味为空则无法个性化。Feign 返回 null 时按用户不存在处理。
      */
     @Override
     public List<FoodRecommendVO> recommend(Long userId, Integer limit) {
-        int topN = limit == null || limit < 1 ? DEFAULT_RECOMMEND_LIMIT : Math.min(limit, MAX_SIZE);
-
-        List<FoodItemVO> candidates = foodItemMapper.selectOnShelfForRecommend(RECOMMEND_CANDIDATE_CAP);
-        if (candidates.isEmpty()) {
-            return List.of();
-        }
-
-        // 销量归一化的分母：取候选池最高销量，缺失或全为 0 时兜底为 1
-        int maxSales = candidates.stream()
-                .map(FoodItemVO::getSalesCount)
-                .filter(v -> v != null && v > 0)
-                .mapToInt(Integer::intValue)
-                .max()
-                .orElse(1);
-
         if (userId == null) {
             throw new BizException("请先登录后再获取推荐");
         }
-        UserInfo user = userFeignClient.getUserInfo(userId);
-        if (user == null) {
-            throw new BizException("用户不存在");
-        }
-        // 没有口味偏好就无法个性化，直接提示完善
-        List<String> userTastes = TagTextUtil.parseTags(user.getTasteTags());
-        if (userTastes.isEmpty()) {
-            throw new BizException("请先完善口味偏好");
-        }
-        Set<String> dislikes = TagTextUtil.parseTagSet(user.getDislikeIngredients());
-
-        List<FoodRecommendVO> scored = new ArrayList<>();
-        for (FoodItemVO row : candidates) {
-            // 命中忌口食材的候选直接剔除
-            if (TagTextUtil.containsAnyTag(TagTextUtil.parseTagSet(row.getIngredients()), dislikes)) {
-                continue;
-            }
-
-            FoodItem food = toScoringItem(row);
-            double rawScore = FoodRecommendScorer.scorePersonalized(food, userTastes, maxSales);
-
-            FoodRecommendVO vo = new FoodRecommendVO();
-            vo.setFood(stripRecommendOnlyFields(row));
-            vo.setScore(FoodRecommendScorer.roundScore(rawScore));
-            vo.setRecommendTags(TagTextUtil.joinTags(
-                    FoodRecommendScorer.matchedRecommendTags(userTastes, food)));
-            scored.add(vo);
-        }
-
-        // 同分依次比销量、比 ID，保证结果稳定可复现
-        scored.sort(Comparator
-                .comparing(FoodRecommendVO::getScore, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(v -> v.getFood().getSalesCount(), Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(v -> v.getFood().getId(), Comparator.nullsLast(Comparator.reverseOrder())));
-
-        if (scored.size() <= topN) {
-            return scored;
-        }
-        return new ArrayList<>(scored.subList(0, topN));
-    }
-
-    /**
-     * 把展示用 VO 转成打分所需的最小实体。
-     *
-     * @param row 候选美食 VO
-     * @return 仅含打分字段的 {@link FoodItem}
-     */
-    private FoodItem toScoringItem(FoodItemVO row) {
-        FoodItem item = new FoodItem();
-        item.setId(row.getId());
-        item.setFoodType(row.getFoodType());
-        item.setTasteTags(row.getTasteTags());
-        item.setIngredients(row.getIngredients());
-        item.setAvgScore(row.getAvgScore());
-        item.setSalesCount(row.getSalesCount());
-        return item;
-    }
-
-    /**
-     * 响应里去掉仅用于计算的口味/食材字段。
-     *
-     * @param row 候选美食 VO
-     * @return 可安全返回给前端的 VO 副本
-     */
-    private FoodItemVO stripRecommendOnlyFields(FoodItemVO row) {
-        FoodItemVO out = new FoodItemVO();
-        out.setId(row.getId());
-        out.setMerchantId(row.getMerchantId());
-        out.setShopName(row.getShopName());
-        out.setCampusArea(row.getCampusArea());
-        out.setCategoryId(row.getCategoryId());
-        out.setName(row.getName());
-        out.setFoodType(row.getFoodType());
-        out.setPrice(row.getPrice());
-        out.setStock(row.getStock());
-        out.setDescription(row.getDescription());
-        out.setCoverUrl(row.getCoverUrl());
-        out.setAvgScore(row.getAvgScore());
-        out.setReviewCount(row.getReviewCount());
-        out.setSalesCount(row.getSalesCount());
-        out.setRecommendTag(row.getRecommendTag());
-        out.setStatus(row.getStatus());
-        return out;
+        int topN = limit == null || limit < 1 ? DEFAULT_RECOMMEND_LIMIT : Math.min(limit, MAX_SIZE);
+        return recommendService.recommend(userId, topN, RECOMMEND_CANDIDATE_CAP);
     }
 
     /**

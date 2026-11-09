@@ -16,8 +16,6 @@ import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
-import jakarta.validation.Valid;
-
 /**
  * 当前登录用户资料服务。
  *
