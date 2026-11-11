@@ -1,22 +1,22 @@
 # campus-food 项目文档
 
-文档按读者拆分：**课设任务书**看仓库根下本目录的任务书，**前端联调**看 `frontend/`，**后端实现与课设笔记**看 `backend/`。
+| 文档 | 说明 |
+|------|------|
+| [课程设计任务书.md](./课程设计任务书.md) | 课设功能范围 |
+| **[校园美食平台完整接口文档.md](./校园美食平台完整接口文档.md)** | **前后端共用接口：路径 + 请求 JSON + 返回 JSON** |
+
+## 前端（交给前端同事，不用读后端代码）
+
+入口：[frontend/README.md](./frontend/README.md)
 
 | 文档 | 说明 |
 |------|------|
-| [课程设计任务书.md](./课程设计任务书.md) | 按《（课程设计要求）校园美食智能推荐与社交平台》改写的正式任务书 |
+| [校园美食平台完整接口文档.md](./校园美食平台完整接口文档.md) | **唯一接口契约** |
+| [frontend/README.md](./frontend/README.md) | 环境、三端、已实现路径、页面对照 |
+| [frontend/types.ts](./frontend/types.ts) | 可拷进前端项目的类型 |
+| [frontend/http-client.example.ts](./frontend/http-client.example.ts) | Axios 示例 |
 
-## 前端（联调、页面开发）
-
-| 文档 | 说明 |
-|------|------|
-| [frontend/README.md](./frontend/README.md) | 快速上手：环境、鉴权、错误格式、页面与接口对照 |
-| [frontend/API.md](./frontend/API.md) | 全量 HTTP 接口说明（路径、参数、响应、是否需登录） |
-| [frontend/types.ts](./frontend/types.ts) | 与后端 VO/DTO 对齐的 TypeScript 类型 |
-| [frontend/http-client.example.ts](./frontend/http-client.example.ts) | Axios 封装示例（Token、401 处理） |
-| [frontend/openapi.yaml](./frontend/openapi.yaml) | OpenAPI 3，可导入 Apifox / Postman |
-
-## 后端（实现、测试、答辩）
+## 后端
 
 | 文档 | 说明 |
 |------|------|

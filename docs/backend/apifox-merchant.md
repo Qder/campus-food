@@ -138,9 +138,9 @@ if (data.token) {
 ## 五、导入 OpenAPI（可选）
 
 - 商家子集：`docs/backend/openapi-merchant.yaml`
-- **全站前端联调（推荐）**：`docs/frontend/openapi.yaml`
+- 全站接口：`docs/校园美食平台完整接口文档.md`
 
-在 Apifox：**项目设置 → 导入数据 → OpenAPI** 导入后，补上环境变量 `baseUrl`、`token` 即可。
+在 Apifox 可导入商家 OpenAPI，或对照契约手工建接口。环境变量补 `baseUrl`、`token`。
 
 ---
 

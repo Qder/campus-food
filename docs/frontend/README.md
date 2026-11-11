@@ -1,21 +1,35 @@
-# 前端联调指南
+# 前端开发说明
 
-面向 Vue / React / 小程序等调用本后端时的约定说明。接口明细见 [API.md](./API.md)，类型见 [types.ts](./types.ts)。
+给**前端同事**看。不用读 Java、不用进各微服务目录。
 
-## 1. 基础配置
+**接口唯一来源：** [校园美食平台完整接口文档.md](../校园美食平台完整接口文档.md)
+
+每条接口都有：路径、要不要登录、请求 JSON、返回 JSON、标题上的 **已实现 / 还没做**。字段名按文档原样发、原样收。
+
+本目录另外两份可拷进前端工程：
+
+| 文件 | 用途 |
+|------|------|
+| [types.ts](./types.ts) | 和文档同一套 TypeScript 类型 |
+| [http-client.example.ts](./http-client.example.ts) | Axios：带 Token、处理 401 |
+
+类型和文档打架时，**以接口文档为准**。
+
+---
+
+## 环境
 
 | 项 | 值 |
 |----|-----|
-| Base URL | `http://localhost:8080` |
-| Content-Type | `application/json`（有 Body 的接口） |
-| 鉴权头 | `Authorization: Bearer <token>` |
-| Token 有效期 | 120 分钟（`jwt.expire-minutes`） |
+| Base URL | `http://localhost:8080`（只打网关，不要写 8081–8085） |
+| Content-Type | `application/json`（有 Body 时） |
+| 鉴权 | `Authorization: Bearer <token>` |
+| 联调 | 后端同事把网关开着；同一局域网把 `localhost` 换成他的 IP |
 
-开发时若浏览器跨域报错，请在前端 devServer 配置 **代理**（推荐），或在后端增加 CORS（当前仓库未默认开启 CORS）。
-
-**Vite 代理示例**（`vite.config.ts`）：
+Vite 代理（代码里仍写 `/auth/login`，请求走 `/api`）：
 
 ```ts
+// vite.config.ts
 export default defineConfig({
   server: {
     proxy: {
@@ -29,146 +43,145 @@ export default defineConfig({
 });
 ```
 
-前端请求统一写成 `fetch('/api/food/list')`，避免直连 8080 的跨域问题。
+---
 
-## 2. 鉴权与公开接口
+## 成功 / 失败（不要自己再包一层）
 
-### 2.1 无需 Token
+| HTTP | body | 前端怎么做 |
+|------|------|------------|
+| 200 | **就是业务 JSON**，没有 `{ "code": 0, "data": ... }` | `const { data } = await http.get(...)`，用 `data`，不要写 `data.data` |
+| 200 + 空 body | 商家接单/完成等 `void` 接口 | 当成功 |
+| 200 + 数字 | 商家 `insert/update/delete` | 影响行数，一般是 `1` |
+| 400 | `{ "code": 400, "message": "原因" }` | 把 `message` 弹给用户 |
+| 401 | `{ "code": 401, "message": "..." }` | 清 token，跳登录 |
+| 500 | | 提示「服务繁忙，请稍后重试」 |
 
-- `POST /auth/register`
-- `POST /auth/login`
-- 以下 **GET**（美食浏览，拦截器白名单）：
-  - `/food/categories`
-  - `/food/list`
-  - `/food/search`
-  - `/food/{id}`（数字 id）
-  - `/food/{id}/reviews`
+分页（页码从 **1** 开始）：`{ total, page, size, list }`。空列表是 `list: []`，不是 404。
 
-### 2.2 必须 Token
+`roleId`：`1` 学生　`2` 商家　`3` 管理员。登录后按 `roleId` 进三个端，不要前端猜。
 
-除上述路径外，**所有接口**（含 `GET /food/recommend`、`POST /food/{id}/reviews`、用户资料、商家、管理员、店主菜品）都要带 `Authorization`。
+金额是**数字**（`18.0`）。时间是 `"2026-11-10T21:00:00"` 这类。用户资料主键叫 `id`，不是 `userId`。
 
-管理员接口（`/admin/**`）还要求用户 **`roleId === 3`**，否则业务层返回 400「无管理员权限」。
+---
 
-### 2.3 登录后建议存什么
+## 三个端
 
-`POST /auth/login` 成功体（`LoginVO`）：
+| 端 | 条件 | 主要页面 |
+|----|------|----------|
+| 学生 | `roleId === 1` | 浏览/搜索/详情、推荐、下单、我的订单、评价、好友聊天、拼单、个人中心 |
+| 商家 | `roleId === 2` | 入驻/我的店、菜品上下架、商家订单（接单/拒单/完成） |
+| 管理 | `roleId === 3` | 审店（待审/通过/驳回）；封禁用户、公告、报表文档标了还没做 |
 
-```json
-{
-  "id": 1,
-  "nickname": "小明",
-  "roleId": 1,
-  "token": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
+注册出来一定是学生。商家要等入驻审核通过后 `roleId` 才会变成 2。
 
-前端通常持久化：`token`、`id`、`nickname`、`roleId`。后续请求只带 `token` 即可；**不要**把 `userId` 放在 query/body 里冒充当前用户，后端以 Token 为准。
+---
 
-### 2.4 角色与页面
+## 按模块：先做已实现的
 
-| roleId | 含义 | 典型页面 |
-|--------|------|----------|
-| 1 | 普通用户 | 首页美食、推荐、评价、个人资料 |
-| 2 | 商家 | 我的店铺、菜品维护（入驻后由管理员审核通过并升角色） |
-| 3 | 管理员 | 待审店铺、通过/驳回、代建店铺 |
+下面只列**现网已通**的路径。标了还没做的（验证码、上传、轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
 
-## 3. 响应与错误格式
+### 登录（文档第 1 章）
 
-### 3.1 成功响应
+`POST /auth/register`　`POST /auth/login`（不用 Token）
 
-**没有统一 `{ code, data }` 包装**。HTTP 200 时 body 直接是业务对象或数组，例如：
+登录返回 `token`、`id`、`nickname`、`roleId`，存本地。没有退出接口，清本地即可。
 
-- 登录 → `LoginVO`
-- 美食列表 → `PageVO<FoodItemVO>`
-- 分类 → `FoodCategoryVO[]`
+### 个人中心（第 2 章）
 
-分页结构 `PageVO`：
+`GET/PUT /user/profile`  
+`GET/POST/DELETE /user/favorites`  
+`GET/PUT /user/reminders`  
+`GET/POST /user/feeds`　`DELETE /user/feeds/{id}`
 
-```json
-{
-  "total": 100,
-  "page": 1,
-  "size": 10,
-  "list": [ /* ... */ ]
-}
-```
+### 美食（第 3 章）
 
-`page` 从 **1** 开始；`size` 默认 10，美食相关接口最大 **50**。
+不用登录：`GET /food/categories` `/food/list` `/food/search` `/food/{id}` `/food/{id}/reviews`  
+要登录：`GET /food/recommend`　`POST /food/{id}/reviews`
 
-### 3.2 错误响应
+推荐不强制口味；未登录是 401，不会降级成热门。
 
-| HTTP | 场景 | Body 示例 |
-|------|------|-----------|
-| 401 | 未带 Token / Token 无效 / 过期 | `{"code":401,"message":"未登录或 Token 缺失"}` |
-| 400 | 业务异常 `BizException`、参数校验失败 | `{"code":400,"message":"具体原因"}` |
-| 500 | 未捕获异常 | `{"code":500,"message":"服务器内部错误"}` |
+### 好友 / 私聊（第 4 章）
 
-401 由 **JWT 拦截器**直接写出，不会进入全局异常处理器。前端建议在响应拦截器里：`code === 401` 时清空 Token 并跳转登录页。
+路径按现网名字，不要改成 REST 新路径：
 
-## 4. 推荐功能（前端必知）
+`POST /social/sendFriendRequest`　`POST /social/handleFriendRequest`  
+`GET /social/friends`　`GET /social/friend-requests/inbox`　`POST /social/friends/{id}/delete`  
+`POST /social/sessions`（现在只能 `sessionType: 1` 私聊）  
+`GET/POST /social/sessions/{id}/messages`  
+`POST /social/blacklist`　`DELETE /social/blacklist/{userId}`　`GET /social/blacklist`
 
-1. **必须先登录**再调 `GET /food/recommend`。
-2. 用户须在资料里设置 **口味** `tasteTags`（逗号分隔，如 `"辣,咸鲜"`），否则返回 400「请先完善口味偏好」。注册接口**不要求**口味，可在注册后调 `PUT /user/profile` 写入。
-3. 可选 **忌口** `dislikeIngredients`，推荐结果会过滤含这些食材的菜品。
-4. 推荐项结构：
+### 拼单约饭（第 5 章）
 
-```json
-{
-  "score": 0.59,
-  "recommendTags": "辣",
-  "food": { /* FoodItemVO，不含 tasteTags/ingredients */ }
-}
-```
+`GET /social/meal-activities`　`POST /social/meal-activities`  
+`GET /social/meal-activities/{id}`  
+`POST .../join` `.../quit` `.../cancel` `.../feedback`  
+`GET .../members`　`DELETE .../members/{userId}`　`GET .../feedback`
 
-## 5. 商家与店铺状态（展示用）
+列表、详情可不登录；报名、发起要登录。
 
-**店铺审核 `auditStatus`**
+### 商家（第 6 章）
 
-| 值 | 说明 |
-|----|------|
-| 0 | 待审 |
-| 1 | 通过 |
-| 2 | 驳回 |
-| 3 | 取消资格 |
+用户端：`GET /merchant/list`　`GET /merchant/get/{id}`（可不登录）  
+店主：`POST /merchant/insert`　`PUT /merchant/update`　`PUT /merchant/delete/{id}`　`GET /merchant/mine`  
+菜品：`POST /merchant/foods/save`　`PUT .../update/{id}`　`PUT .../delete|onshelf|offshelf/{id}`　`GET /merchant/foods/mine` 等
 
-**店铺经营 `status`**
+建店/改店成功体是**数字**，不是店铺对象。新增菜品成功体是新菜 **id 数字**。
 
-| 值 | 说明 |
-|----|------|
-| 0 | 未开业 |
-| 1 | 营业 |
-| 2 | 停业 |
+### 订单（第 7 章）
 
-`GET /merchant/list` 仅返回 **审核通过且营业中** 的店，适合做用户端店铺列表。店主看自己所有店用 `GET /merchant/mine`（含待审）。
+没有购物车、没有单独收银台。详情页直接：
 
-## 6. 建议的页面 → 接口映射
+`POST /order/orders`（body 用 `items`，模拟支付后直接 `PAID`）  
+`GET /order/orders`　`GET /order/orders/{orderId}`  
+商家：`GET /order/merchant/orders`  
+`POST /order/merchant/orders/{id}/accept|cancel|complete`（成功空 body）
 
-| 页面 | 主要接口 |
-|------|----------|
-| 注册 / 登录 | `POST /auth/register`、`POST /auth/login` |
-| 个人中心 | `GET/PUT /user/profile` |
-| 首页分类 | `GET /food/categories` |
-| 美食列表 / 筛选 | `GET /food/list?categoryId=&campusArea=&page=&size=` |
-| 搜索 | `GET /food/search?keyword=&page=&size=` |
-| 美食详情 | `GET /food/{id}`、`GET /food/{id}/reviews` |
-| 写评价 | `POST /food/{id}/reviews`（需登录） |
-| 个性化推荐 | `GET /food/recommend?limit=`（需登录 + 口味） |
-| 商家入驻 | `POST /merchant/insert` |
-| 我的店铺 | `GET /merchant/mine` |
-| 编辑店铺 | `PUT /merchant/update`（body 必含 `id`） |
-| 店主菜品 | `POST /merchant/foods/save`、`PUT /merchant/foods/update/{id}`、`PUT /merchant/foods/delete/{id}` |
-| 管理待审 | `GET /admin/merchants/pending` |
-| 审核通过/驳回 | `PUT /admin/merchants/{id}/approve`、`PUT /admin/merchants/{id}/reject` |
+不要打 `/merchant` 去接单。
 
-## 7. 联调顺序（第一次跑通）
+### 管理（第 8 章）
 
-1. 启动 MySQL + 后端 `CampusFoodApplication`。
-2. `POST /auth/register` 注册用户。
-3. `PUT /user/profile` 设置 `tasteTags`（要做推荐时）。
-4. `POST /auth/login` → 保存 `token`。
-5. `GET /food/categories`、`GET /food/list`（可不登录）。
-6. 带 Token：`GET /user/profile`、`GET /food/recommend`。
-7. 商家流：`POST /merchant/insert` → `GET /merchant/mine`（管理员账号审核后再上架菜品）。
+已实现：`GET /admin/merchants/pending`　`POST /admin/merchants`　`PUT .../approve`　`PUT .../reject`  
+要 `roleId === 3`。
 
-更完整的请求体与字段说明见 [API.md](./API.md)。可复制 [http-client.example.ts](./http-client.example.ts) 作为项目 HTTP 层起点。
+---
+
+## 不要做这些
+
+- 不要把响应改成 `{ code, message, data }`
+- 不要把 `/social/sendFriendRequest` 改成 `/social/friend-requests`
+- 不要做购物车、结算预览、独立支付
+- 金额不要改成字符串
+- 文档标题 **还没做** 的接口先做页面占位即可
+- 识图、分享到微信：课设不要求接口；分享可复制详情链接
+
+课设明确砍掉的能力见接口文档文末。
+
+---
+
+## 建议页面（对接已实现接口）
+
+| 页面 | 调这些 |
+|------|--------|
+| 登录 / 注册 | `/auth/login` `/auth/register` |
+| 首页 | `/food/categories` `/food/list` `/food/recommend`（登录后） |
+| 搜索 | `/food/search` |
+| 美食详情 | `/food/{id}` `/food/{id}/reviews`，登录后可评价、下单 |
+| 下单 | `POST /order/orders` |
+| 我的订单 | `GET /order/orders` `/order/orders/{id}` |
+| 个人中心 | profile、收藏、动态、提醒 |
+| 好友 / 聊天 | 第 4 章全部已实现项 |
+| 拼单 | 第 5 章 |
+| 商家后台 | 第 6、7 章店主接口 |
+| 管理后台 | 第 8 章审店 |
+
+---
+
+## 联调检查
+
+1. 登录成功，本地有 `token`，后续请求带 `Bearer`。
+2. `GET /food/list` 能出列表（可未登录）。
+3. 带 token 调 `GET /food/recommend` 返回数组。
+4. 学生号下单 `POST /order/orders` 返回 `status: "PAID"`。
+5. HTTP 400 时页面上看到的是后端 `message`，不是自己拼的英文。
+
+对不上字段时，用 Apifox 打同一路径，以实际 JSON 为准，回来改文档；不要翻后端代码。

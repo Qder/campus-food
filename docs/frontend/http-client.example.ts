@@ -1,11 +1,24 @@
 /**
- * Axios 封装示例（需自行安装 axios）。
- * 配合 Vite 代理：baseURL 使用 '/api'，见 frontend/README.md
+ * Axios 封装示例，拷进前端工程后按项目改 import 路径。
+ * Vite：baseURL 用 '/api'，代理见 README.md。
+ * 成功 body 就是 VO；失败看 HTTP 400 / 401 / 500，不要再解 data.data。
  */
 import axios, { type AxiosError } from 'axios';
-import type { ApiErrorBody, LoginDTO, LoginVO } from './types';
+import type {
+  ApiErrorBody,
+  FoodItemVO,
+  FoodRecommendVO,
+  LoginDTO,
+  LoginVO,
+  PageVO,
+  PlaceOrderDTO,
+  OrderPlaceVO,
+  RegisterDTO,
+  RegisterVO,
+} from './types';
 
 const TOKEN_KEY = 'campus_food_token';
+const USER_KEY = 'campus_food_user';
 
 export const http = axios.create({
   baseURL: '/api',
@@ -28,29 +41,50 @@ http.interceptors.response.use(
     const body = err.response?.data;
     if (status === 401 || body?.code === 401) {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
       // router.push('/login');
     }
     return Promise.reject(body ?? err);
   },
 );
 
-export function saveToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+export function saveSession(vo: LoginVO) {
+  localStorage.setItem(TOKEN_KEY, vo.token);
+  localStorage.setItem(
+    USER_KEY,
+    JSON.stringify({ id: vo.id, nickname: vo.nickname, roleId: vo.roleId }),
+  );
+}
+
+export async function register(dto: RegisterDTO): Promise<RegisterVO> {
+  const { data } = await http.post<RegisterVO>('/auth/register', dto);
+  return data;
 }
 
 export async function login(dto: LoginDTO): Promise<LoginVO> {
   const { data } = await http.post<LoginVO>('/auth/login', dto);
-  saveToken(data.token);
+  saveSession(data);
   return data;
 }
 
-/** 公开美食列表，可不登录 */
 export async function listFoods(params: {
   categoryId?: number;
   campusArea?: string;
   page?: number;
   size?: number;
-}) {
-  const { data } = await http.get('/food/list', { params });
+}): Promise<PageVO<FoodItemVO>> {
+  const { data } = await http.get<PageVO<FoodItemVO>>('/food/list', { params });
+  return data;
+}
+
+export async function recommend(limit = 10): Promise<FoodRecommendVO[]> {
+  const { data } = await http.get<FoodRecommendVO[]>('/food/recommend', {
+    params: { limit },
+  });
+  return data;
+}
+
+export async function placeOrder(dto: PlaceOrderDTO): Promise<OrderPlaceVO> {
+  const { data } = await http.post<OrderPlaceVO>('/order/orders', dto);
   return data;
 }

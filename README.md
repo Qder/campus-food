@@ -5,7 +5,8 @@
 ## 文档
 
 - **[docs/README.md](./docs/README.md)**：文档总览  
-- **前端联调**：[docs/frontend/README.md](./docs/frontend/README.md)、[API 说明](./docs/frontend/API.md)、[V1.3 契约](./docs/frontend/API-frontend-v1.3.md)  
+- **接口文档**：[docs/校园美食平台完整接口文档.md](./docs/校园美食平台完整接口文档.md)  
+- **前端交接**：[docs/frontend/README.md](./docs/frontend/README.md)（不用读 Java）  
 - **后端笔记**：[docs/backend/](./docs/backend/)
 
 ## 模块与端口
@@ -52,4 +53,4 @@
 - **Eureka**：`http://localhost:8761`  
 - **Feign 内部接口**（不要走 8080）：`http://localhost:8081/internal/...`，仅供微服务间调用  
 
-更细的鉴权与接口列表见 [docs/frontend/API.md](./docs/frontend/API.md)。订单商家接口走 `/order/merchant/**`，不要打 `/merchant/**`。
+接口列表见 [docs/校园美食平台完整接口文档.md](./docs/校园美食平台完整接口文档.md)。订单商家接口走 `/order/merchant/**`，不要打 `/merchant/**`。
