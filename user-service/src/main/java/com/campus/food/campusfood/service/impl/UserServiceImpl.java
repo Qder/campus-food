@@ -29,6 +29,7 @@ import com.campus.food.campusfood.vo.FeedPublishVO;
 import com.campus.food.campusfood.vo.FeedVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
+import com.campus.food.campusfood.vo.UserListVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
 import java.util.ArrayList;
@@ -274,6 +275,37 @@ public class UserServiceImpl implements UserService {
         if (rows <= 0) {
             throw new BizException("设置用户角色失败");
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 分页默认第 1 页、每页 10 条、最大 50。keyword 去空白后为空则不筛选；status 仅接受 0/1。
+     */
+    @Override
+    public PageVO<UserListVO> listUsersForAdmin(String keyword, Integer status, Integer page, Integer size) {
+        if (keyword != null) {
+            keyword = keyword.trim();
+            if (keyword.isEmpty()) {
+                keyword = null;
+            }
+        }
+        if (status != null && status != 0 && status != 1) {
+            throw new BizException("状态不合法");
+        }
+        int p = page == null || page < 1 ? 1 : page;
+        int s = size == null || size < 1 ? 10 : Math.min(size, 50);
+        int total = userMapper.countByAdminFilter(keyword, status);
+        List<UserListVO> list = total == 0
+                ? List.of()
+                : userMapper.selectPageByAdminFilter(keyword, status, (p - 1) * s, s);
+        PageVO<UserListVO> pageVO = new PageVO<>();
+        pageVO.setTotal(total);
+        pageVO.setPage(p);
+        pageVO.setSize(s);
+        pageVO.setList(list);
+        return pageVO;
     }
 
     /**

@@ -418,6 +418,15 @@ export interface MerchantRejectDTO {
   reason: string;
 }
 
+export interface UserListVO {
+  id: number;
+  nickname: string;
+  phone: string | null;
+  email: string | null;
+  roleId: RoleId;
+  status: 0 | 1;
+}
+
 /* ---------- 订单 ---------- */
 
 export interface OrderLineDTO {

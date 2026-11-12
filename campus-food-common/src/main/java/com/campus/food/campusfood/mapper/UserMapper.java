@@ -1,10 +1,12 @@
 package com.campus.food.campusfood.mapper;
 
 import com.campus.food.campusfood.entity.User;
+import com.campus.food.campusfood.vo.UserListVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * {@code sys_user} MyBatis Mapper
@@ -97,4 +99,27 @@ public interface UserMapper {
      * @return 影响行数
      */
     int logicalDeleteById(@Param("id") Long id);
+
+    /**
+     * 管理端用户列表总条数（未删除）。
+     *
+     * @param keyword 昵称 / 手机 / 邮箱模糊匹配，可为 null
+     * @param status  账号状态，可为 null 表示不限
+     * @return 匹配条数
+     */
+    int countByAdminFilter(@Param("keyword") String keyword, @Param("status") Integer status);
+
+    /**
+     * 管理端用户分页列表（未删除）。
+     *
+     * @param keyword 昵称 / 手机 / 邮箱模糊匹配，可为 null
+     * @param status  账号状态，可为 null 表示不限
+     * @param offset  跳过条数
+     * @param size    取条数
+     * @return 当前页，无数据时为空列表
+     */
+    List<UserListVO> selectPageByAdminFilter(@Param("keyword") String keyword,
+                                             @Param("status") Integer status,
+                                             @Param("offset") int offset,
+                                             @Param("size") int size);
 }

@@ -3,7 +3,11 @@ package com.campus.food.campusfood.controller;
 import com.campus.food.campusfood.aspect.AdminOnly;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.service.AdminService;
+import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.UserListVO;
+
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -67,7 +71,7 @@ public class AdminController {
      */
     @PutMapping("/merchants/{id}/approve")
     public ResponseEntity<Merchant> approveMerchant(@PathVariable Long id,
-                                                    @RequestParam(required = false) String auditRemark) {
+            @RequestParam(required = false) String auditRemark) {
         return ResponseEntity.ok(adminService.approveMerchant(id, auditRemark));
     }
 
@@ -81,7 +85,19 @@ public class AdminController {
      */
     @PutMapping("/merchants/{id}/reject")
     public ResponseEntity<Merchant> rejectMerchant(@PathVariable Long id,
-                                                   @Valid @RequestBody MerchantRejectDTO merchantRejectDTO) {
+            @Valid @RequestBody MerchantRejectDTO merchantRejectDTO) {
         return ResponseEntity.ok(adminService.rejectMerchant(id, merchantRejectDTO));
+    }
+
+    /**
+     * 用户分页列表。keyword、status 均可省略。
+     *
+     * @param queryDTO 查询条件
+     * @return 分页结果
+     * @throws BizException 状态不合法或用户服务不可用时
+     */
+    @GetMapping("/users")
+    public ResponseEntity<PageVO<UserListVO>> getUserList(UserListQueryDTO queryDTO) {
+        return ResponseEntity.ok(adminService.getUserPageList(queryDTO));
     }
 }

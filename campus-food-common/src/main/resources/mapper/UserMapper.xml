@@ -109,4 +109,31 @@
         WHERE id = #{id}
     </update>
 
+    <sql id="Admin_User_Filter">
+        FROM sys_user
+        WHERE deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%')
+                OR email LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <select id="countByAdminFilter" resultType="int">
+        SELECT COUNT(*)
+        <include refid="Admin_User_Filter" />
+    </select>
+
+    <select id="selectPageByAdminFilter" resultType="com.campus.food.campusfood.vo.UserListVO">
+        SELECT id, nickname, phone, email, role_id AS roleId, status
+        <include refid="Admin_User_Filter" />
+        ORDER BY id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
 </mapper>

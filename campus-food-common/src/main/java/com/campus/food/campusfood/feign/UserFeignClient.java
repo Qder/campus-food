@@ -1,9 +1,12 @@
 package com.campus.food.campusfood.feign;
 
+import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.UserListVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 用户服务内部接口的 Feign 客户端。
@@ -33,4 +36,19 @@ public interface UserFeignClient {
      */
     @PutMapping("/users/{id}/merchant-role")
     void setMerchantRole(@PathVariable("id") Long id);
+
+    /**
+     * 管理端用户分页列表。
+     *
+     * @param keyword 昵称 / 手机 / 邮箱，可为 null
+     * @param status  0 封禁 / 1 正常，可为 null
+     * @param page    页码，从 1 开始
+     * @param size    每页条数
+     * @return 分页结果；降级时可能为 null
+     */
+    @GetMapping("/users")
+    PageVO<UserListVO> listUsers(@RequestParam(value = "keyword", required = false) String keyword,
+                                 @RequestParam(value = "status", required = false) Integer status,
+                                 @RequestParam(value = "page", required = false) Integer page,
+                                 @RequestParam(value = "size", required = false) Integer size);
 }

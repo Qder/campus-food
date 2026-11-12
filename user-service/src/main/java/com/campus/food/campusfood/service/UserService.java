@@ -14,6 +14,7 @@ import com.campus.food.campusfood.vo.FeedPublishVO;
 import com.campus.food.campusfood.vo.FeedVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.RemindVO;
+import com.campus.food.campusfood.vo.UserListVO;
 import com.campus.food.campusfood.vo.UserProfileVO;
 
 /**
@@ -57,6 +58,18 @@ public interface UserService {
      * @throws com.campus.food.campusfood.exception.BizException 用户不存在或更新失败时
      */
     void setMerchantRole(Long id);
+
+    /**
+     * 管理端用户分页列表（未删除账号）。
+     *
+     * @param keyword 昵称 / 手机 / 邮箱模糊匹配，空表示不限
+     * @param status  0 封禁 / 1 正常，null 表示不限
+     * @param page    页码，从 1 起
+     * @param size    每页条数
+     * @return 分页结果，无数据时 {@code list} 为空
+     * @throws com.campus.food.campusfood.exception.BizException status 不是 0/1 时
+     */
+    PageVO<UserListVO> listUsersForAdmin(String keyword, Integer status, Integer page, Integer size);
 
     /**
      * 当前用户收藏列表。

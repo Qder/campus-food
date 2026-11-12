@@ -4,10 +4,13 @@ import java.util.List;
 
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.entity.Merchant;
+import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.UserListVO;
 
 /**
- * 平台管理员的店铺审核：待审列表、代建、通过与驳回。
+ * 平台管理员：店铺审核与用户列表。
  *
  * @author yang
  * @since 2026-10-16
@@ -49,4 +52,13 @@ public interface AdminService {
      * @throws com.campus.food.campusfood.exception.BizException 店铺不是待审或原因为空时
      */
     Merchant rejectMerchant(Long id, MerchantRejectDTO merchantRejectDTO);
+
+    /**
+     * 管理端用户分页列表。
+     *
+     * @param queryDTO 查询条件，可为 null（按默认分页、不筛选）
+     * @return 分页结果，无数据时 {@code list} 为空
+     * @throws com.campus.food.campusfood.exception.BizException 状态不合法或用户服务不可用时
+     */
+    PageVO<UserListVO> getUserPageList(UserListQueryDTO queryDTO);
 }

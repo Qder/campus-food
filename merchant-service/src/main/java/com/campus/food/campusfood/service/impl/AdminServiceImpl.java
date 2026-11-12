@@ -4,6 +4,7 @@ import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
@@ -11,6 +12,9 @@ import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.service.AdminService;
+import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.UserListVO;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,6 +38,12 @@ public class AdminServiceImpl implements AdminService {
     private static final int STATUS_OPEN = 1;
     /** 未逻辑删除 */
     private static final int NOT_DELETED = 0;
+    /** 用户列表默认页码 */
+    private static final int DEFAULT_PAGE = 1;
+    /** 用户列表默认每页条数 */
+    private static final int DEFAULT_SIZE = 10;
+    /** 用户列表每页条数上限 */
+    private static final int MAX_SIZE = 50;
 
     @Autowired
     private MerchantMapper merchantMapper;
@@ -53,7 +63,8 @@ public class AdminServiceImpl implements AdminService {
     /**
      * {@inheritDoc}
      *
-     * <p>管理员代建的店铺直接记为审核通过并开业，不再进入待审。
+     * <p>
+     * 管理员代建的店铺直接记为审核通过并开业，不再进入待审。
      */
     @Override
     public Merchant createMerchant(MerchantCreateDTO merchantCreateDTO) {
@@ -88,7 +99,8 @@ public class AdminServiceImpl implements AdminService {
     /**
      * {@inheritDoc}
      *
-     * <p>只有待审店铺能通过；通过后开业并授予店主商家角色。
+     * <p>
+     * 只有待审店铺能通过；通过后开业并授予店主商家角色。
      */
     @Override
     public Merchant approveMerchant(Long id, String auditRemark) {
@@ -118,7 +130,8 @@ public class AdminServiceImpl implements AdminService {
     /**
      * {@inheritDoc}
      *
-     * <p>驳回原因写入审核备注，经营状态保持不变。
+     * <p>
+     * 驳回原因写入审核备注，经营状态保持不变。
      */
     @Override
     public Merchant rejectMerchant(Long id, MerchantRejectDTO merchantRejectDTO) {
@@ -194,5 +207,36 @@ public class AdminServiceImpl implements AdminService {
             return;
         }
         userFeignClient.setMerchantRole(ownerUserId);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>用户数据在 user-service：校正查询条件后经 Feign 分页查询。
+     */
+    @Override
+    public PageVO<UserListVO> getUserPageList(UserListQueryDTO queryDTO) {
+        String keyword = queryDTO == null ? null : queryDTO.getKeyword();
+        Integer status = queryDTO == null ? null : queryDTO.getStatus();
+        Integer page = queryDTO == null ? null : queryDTO.getPage();
+        Integer size = queryDTO == null ? null : queryDTO.getSize();
+
+        if (keyword != null) {
+            keyword = keyword.trim();
+            if (keyword.isEmpty()) {
+                keyword = null;
+            }
+        }
+        if (status != null && status != 0 && status != 1) {
+            throw new BizException("状态不合法");
+        }
+        int p = page == null || page < 1 ? DEFAULT_PAGE : page;
+        int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+
+        PageVO<UserListVO> pageVO = userFeignClient.listUsers(keyword, status, p, s);
+        if (pageVO == null) {
+            throw new BizException("用户服务不可用");
+        }
+        return pageVO;
     }
 }
