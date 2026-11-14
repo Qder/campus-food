@@ -427,6 +427,13 @@ export interface UserListVO {
   status: 0 | 1;
 }
 
+export interface UserStatusUpdateDTO {
+  /** 0 封禁，1 恢复 */
+  status: 0 | 1;
+  /** 封禁原因，封禁时必填 */
+  reason?: string | null;
+}
+
 /* ---------- 订单 ---------- */
 
 export interface OrderLineDTO {

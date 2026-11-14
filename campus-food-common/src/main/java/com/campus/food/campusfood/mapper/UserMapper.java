@@ -101,6 +101,15 @@ public interface UserMapper {
     int logicalDeleteById(@Param("id") Long id);
 
     /**
+     * 按主键更新账号状态。
+     *
+     * @param id     用户 ID
+     * @param status 0 封禁，1 正常
+     * @return 影响行数
+     */
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    /**
      * 管理端用户列表总条数（未删除）。
      *
      * @param keyword 昵称 / 手机 / 邮箱模糊匹配，可为 null

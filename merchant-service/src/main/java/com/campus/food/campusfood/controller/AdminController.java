@@ -4,6 +4,7 @@ import com.campus.food.campusfood.aspect.AdminOnly;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.service.AdminService;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
@@ -99,5 +100,20 @@ public class AdminController {
     @GetMapping("/users")
     public ResponseEntity<PageVO<UserListVO>> getUserList(UserListQueryDTO queryDTO) {
         return ResponseEntity.ok(adminService.getUserPageList(queryDTO));
+    }
+
+    /**
+     * 封禁 / 恢复用户。status：0 封禁，1 恢复。
+     *
+     * @param id  用户 ID
+     * @param dto 目标状态与原因
+     * @return 成功时空 body
+     * @throws BizException 状态不合法、封禁原因为空、封禁自己或用户服务不可用时
+     */
+    @PutMapping("/users/{id}/status")
+    public ResponseEntity<Void> setUserStatus(@PathVariable Long id,
+            @Valid @RequestBody UserStatusUpdateDTO dto) {
+        adminService.setUserStatus(id, dto);
+        return ResponseEntity.ok().build();
     }
 }

@@ -1,11 +1,14 @@
 package com.campus.food.campusfood.feign;
 
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
+import com.campus.food.campusfood.vo.UserStatusUpdateVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
@@ -51,4 +54,17 @@ public interface UserFeignClient {
                                  @RequestParam(value = "status", required = false) Integer status,
                                  @RequestParam(value = "page", required = false) Integer page,
                                  @RequestParam(value = "size", required = false) Integer size);
+
+    /**
+     * 封禁或恢复用户。落库与业务校验在 user-service 完成。
+     *
+     * @param id         用户主键
+     * @param operatorId 操作管理员 ID，内部接口没有 JWT，需显式传入
+     * @param dto        目标状态与原因
+     * @return 执行结果；降级时 {@code success=false}
+     */
+    @PutMapping("/users/{id}/status")
+    UserStatusUpdateVO setUserStatus(@PathVariable("id") Long id,
+                                     @RequestParam("operatorId") Long operatorId,
+                                     @RequestBody UserStatusUpdateDTO dto);
 }

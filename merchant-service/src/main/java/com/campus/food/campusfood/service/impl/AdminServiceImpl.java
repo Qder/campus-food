@@ -5,6 +5,7 @@ import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
@@ -14,6 +15,7 @@ import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.service.AdminService;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
+import com.campus.food.campusfood.vo.UserStatusUpdateVO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -238,5 +240,39 @@ public class AdminServiceImpl implements AdminService {
             throw new BizException("用户服务不可用");
         }
         return pageVO;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 用户数据在 user-service：这里只做入口校验，落库与业务校验由内部接口完成。
+     */
+    @Override
+    public void setUserStatus(Long id, UserStatusUpdateDTO dto) {
+        if (id == null) {
+            throw new BizException("用户 ID 不能为空");
+        }
+        if (dto == null || dto.getStatus() == null) {
+            throw new BizException("状态不能为空");
+        }
+        int status = dto.getStatus();
+        if (status != 0 && status != 1) {
+            throw new BizException("状态不合法：0 封禁，1 恢复");
+        }
+        String reason = dto.getReason() == null ? null : dto.getReason().trim();
+        if (status == 0 && (reason == null || reason.isEmpty())) {
+            throw new BizException("封禁原因不能为空");
+        }
+
+        Long operatorId = requireAdminUserId();
+        if (operatorId.equals(id)) {
+            throw new BizException("不能封禁自己");
+        }
+
+        UserStatusUpdateVO result = userFeignClient.setUserStatus(id, operatorId, dto);
+        if (result == null || !result.isSuccess()) {
+            throw new BizException(result == null ? "用户服务不可用" : result.getMessage());
+        }
     }
 }

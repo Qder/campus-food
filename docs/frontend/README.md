@@ -70,7 +70,7 @@ export default defineConfig({
 |----|------|----------|
 | 学生 | `roleId === 1` | 浏览/搜索/详情、推荐、下单、我的订单、评价、好友聊天、拼单、个人中心 |
 | 商家 | `roleId === 2` | 入驻/我的店、菜品上下架、商家订单（接单/拒单/完成） |
-| 管理 | `roleId === 3` | 审店（待审/通过/驳回）、用户列表；封禁、公告、报表文档标了还没做 |
+| 管理 | `roleId === 3` | 审店（待审/通过/驳回）、用户列表、封禁/恢复；公告、报表文档标了还没做 |
 
 注册出来一定是学生。商家要等入驻审核通过后 `roleId` 才会变成 2。
 
@@ -142,7 +142,8 @@ export default defineConfig({
 
 已实现：`GET /admin/merchants/pending`　`POST /admin/merchants`　`PUT .../approve`　`PUT .../reject`  
 `GET /admin/users`（`keyword` `status` `page` `size` 均可省略）  
-要 `roleId === 3`。封禁、公告、报表文档标了还没做。
+`PUT /admin/users/{id}/status`（body：`status` 0 封禁 / 1 恢复，封禁时 `reason` 必填）  
+要 `roleId === 3`。公告、报表文档标了还没做。
 
 ---
 

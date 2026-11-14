@@ -4,14 +4,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
+import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
+import com.campus.food.campusfood.vo.UserStatusUpdateVO;
 
 /**
  * 用户服务对内 HTTP 接口，仅供其他微服务通过 Feign 调用。
@@ -67,5 +71,27 @@ public class InternalUserController {
                                         @RequestParam(value = "page", required = false) Integer page,
                                         @RequestParam(value = "size", required = false) Integer size) {
         return userService.listUsersForAdmin(keyword, status, page, size);
+    }
+
+    /**
+     * 封禁 / 恢复用户，由 merchant-service 经 Feign 调用。
+     *
+     * <p>业务失败以 {@code success=false} 返回，避免 Feign 把 400 转成 500。
+     *
+     * @param id         用户主键
+     * @param operatorId 操作管理员 ID
+     * @param dto        目标状态与原因
+     * @return 执行结果；失败时带原因
+     */
+    @PutMapping("/users/{id}/status")
+    public UserStatusUpdateVO setUserStatus(@PathVariable("id") Long id,
+                                            @RequestParam("operatorId") Long operatorId,
+                                            @RequestBody UserStatusUpdateDTO dto) {
+        try {
+            userService.setUserStatus(id, dto, operatorId);
+            return UserStatusUpdateVO.ok();
+        } catch (BizException e) {
+            return UserStatusUpdateVO.fail(e.getMessage());
+        }
     }
 }

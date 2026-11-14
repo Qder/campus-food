@@ -6,11 +6,13 @@ import com.campus.food.campusfood.dto.AddFeedDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.entity.UserFavorities;
 import com.campus.food.campusfood.entity.UserFeedPost;
+import com.campus.food.campusfood.entity.UserPunishment;
 import com.campus.food.campusfood.entity.UserReminder;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
@@ -19,6 +21,7 @@ import com.campus.food.campusfood.mapper.MerchantMapper;
 import com.campus.food.campusfood.mapper.UserFavoriteMapper;
 import com.campus.food.campusfood.mapper.UserFeedPostMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
+import com.campus.food.campusfood.mapper.UserPunishmentMapper;
 import com.campus.food.campusfood.mapper.UserReminderMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
@@ -38,6 +41,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 当前登录用户资料服务实现。
@@ -60,6 +64,21 @@ public class UserServiceImpl implements UserService {
     /** 本期唯一渠道：站内信 */
     private static final String CHANNEL_INBOX = "INBOX";
 
+    /** 账号状态：0 封禁，1 正常 */
+    private static final int STATUS_BANNED = 0;
+
+    /** 账号状态：正常 */
+    private static final int STATUS_NORMAL = 1;
+
+    /** 平台管理员角色 ID，对应 {@code sys_role} 种子 ADMIN */
+    private static final int ROLE_ADMIN = 3;
+
+    /** 封禁原因最大长度，与 {@code user_punishment.reason} 一致 */
+    private static final int REASON_MAX_LEN = 512;
+
+    /** 处罚动作：封禁 */
+    private static final String ACTION_BAN = "BAN";
+
     /** GET 列表固定顺序：优惠活动、好友动态、订单状态 */
     private static final List<String> REMIND_TYPES = List.of("CAMPAIGN", "FRIEND_FEED", "ORDER");
 
@@ -71,6 +90,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private UserPunishmentMapper userPunishmentMapper;
 
     @Autowired
     private UserFavoriteMapper userFavoriteMapper;
@@ -650,6 +672,68 @@ public class UserServiceImpl implements UserService {
         int deleted = userFeedPostMapper.deleteByIdAndUserId(id, userId);
         if (deleted <= 0) {
             throw new BizException("删除动态失败");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 封禁与写处罚记录在同一事务；已是目标状态时幂等返回，不重复写处罚。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void setUserStatus(Long id, UserStatusUpdateDTO dto, Long operatorId) {
+        if (id == null) {
+            throw new BizException("用户 ID 不能为空");
+        }
+        if (dto == null || dto.getStatus() == null) {
+            throw new BizException("状态不能为空");
+        }
+        if (operatorId == null) {
+            throw new BizException("操作人不能为空");
+        }
+        int status = dto.getStatus();
+        if (status != STATUS_BANNED && status != STATUS_NORMAL) {
+            throw new BizException("状态不合法：0 封禁，1 恢复");
+        }
+        if (operatorId.equals(id)) {
+            throw new BizException("不能封禁自己");
+        }
+
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+        if (Integer.valueOf(ROLE_ADMIN).equals(user.getRoleId())) {
+            throw new BizException("不能封禁管理员");
+        }
+
+        String reason = dto.getReason() == null ? null : dto.getReason().trim();
+        if (status == STATUS_BANNED) {
+            if (reason == null || reason.isEmpty()) {
+                throw new BizException("封禁原因不能为空");
+            }
+            if (reason.length() > REASON_MAX_LEN) {
+                throw new BizException("封禁原因不能超过 " + REASON_MAX_LEN + " 个字符");
+            }
+        }
+
+        if (user.getStatus() != null && user.getStatus() == status) {
+            return;
+        }
+
+        int rows = userMapper.updateStatus(id, status);
+        if (rows <= 0) {
+            throw new BizException("更新用户状态失败");
+        }
+        if (status == STATUS_BANNED) {
+            UserPunishment punishment = new UserPunishment();
+            punishment.setUserId(id);
+            punishment.setAction(ACTION_BAN);
+            punishment.setReason(reason);
+            punishment.setOperatorId(operatorId);
+            userPunishmentMapper.insert(punishment);
         }
     }
 }

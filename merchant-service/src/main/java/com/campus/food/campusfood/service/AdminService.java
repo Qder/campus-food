@@ -5,6 +5,7 @@ import java.util.List;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.Merchant;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
@@ -61,4 +62,14 @@ public interface AdminService {
      * @throws com.campus.food.campusfood.exception.BizException 状态不合法或用户服务不可用时
      */
     PageVO<UserListVO> getUserPageList(UserListQueryDTO queryDTO);
+
+    /**
+     * 封禁或恢复用户。
+     *
+     * @param id  用户主键
+     * @param dto 目标状态与原因
+     * @throws com.campus.food.campusfood.exception.BizException ID 为空、状态不合法、
+     *                                                           封禁原因为空、封禁自己或用户服务不可用时
+     */
+    void setUserStatus(Long id, UserStatusUpdateDTO dto);
 }

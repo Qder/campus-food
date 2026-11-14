@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.UserPunishmentMapper">
+
+    <!-- created_at 走表默认值；expire_at 为空表示永久 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_punishment (
+            user_id, action, reason, operator_id, expire_at
+        ) VALUES (
+            #{userId}, #{action}, #{reason}, #{operatorId}, #{expireAt}
+        )
+    </insert>
+
+</mapper>

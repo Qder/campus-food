@@ -7,6 +7,7 @@ import com.campus.food.campusfood.dto.AddFeedDTO;
 import com.campus.food.campusfood.dto.DeleteFavoritiesDTO;
 import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.vo.FavoriteAddVO;
 import com.campus.food.campusfood.vo.FavoritiesVO;
@@ -70,6 +71,17 @@ public interface UserService {
      * @throws com.campus.food.campusfood.exception.BizException status 不是 0/1 时
      */
     PageVO<UserListVO> listUsersForAdmin(String keyword, Integer status, Integer page, Integer size);
+
+    /**
+     * 封禁或恢复用户。只允许管理员操作普通用户，封禁时写入处罚记录。
+     *
+     * @param id         用户主键
+     * @param dto        目标状态与原因
+     * @param operatorId 操作管理员 ID
+     * @throws com.campus.food.campusfood.exception.BizException 用户不存在、目标是管理员、
+     *                                                           状态不合法或封禁原因为空时
+     */
+    void setUserStatus(Long id, UserStatusUpdateDTO dto, Long operatorId);
 
     /**
      * 当前用户收藏列表。

@@ -109,6 +109,13 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateStatus">
+        UPDATE sys_user
+        SET status = #{status}
+        WHERE id = #{id}
+          AND deleted = 0
+    </update>
+
     <sql id="Admin_User_Filter">
         FROM sys_user
         WHERE deleted = 0

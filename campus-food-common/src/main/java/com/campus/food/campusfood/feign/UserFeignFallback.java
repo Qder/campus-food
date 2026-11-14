@@ -1,7 +1,9 @@
 package com.campus.food.campusfood.feign;
 
+import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
+import com.campus.food.campusfood.vo.UserStatusUpdateVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -33,5 +35,11 @@ public class UserFeignFallback implements UserFeignClient {
         log.warn("用户服务不可用，listUsers 降级, keyword={}, status={}, page={}, size={}",
                 keyword, status, page, size);
         return null;
+    }
+
+    @Override
+    public UserStatusUpdateVO setUserStatus(Long id, Long operatorId, UserStatusUpdateDTO dto) {
+        log.warn("用户服务不可用，setUserStatus 降级, id={}, operatorId={}", id, operatorId);
+        return UserStatusUpdateVO.fail("用户服务不可用");
     }
 }
