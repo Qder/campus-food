@@ -2,8 +2,10 @@ package com.campus.food.campusfood.service;
 
 import com.campus.food.campusfood.dto.LoginDTO;
 import com.campus.food.campusfood.dto.RegisterDTO;
+import com.campus.food.campusfood.dto.SendCodeDTO;
 import com.campus.food.campusfood.vo.LoginVO;
 import com.campus.food.campusfood.vo.RegisterVO;
+import com.campus.food.campusfood.vo.SendCodeVO;
 
 /**
  * 注册与登录。
@@ -30,4 +32,13 @@ public interface AuthService {
      * @throws com.campus.food.campusfood.exception.BizException 账号或密码错误、账号状态异常时
      */
     LoginVO login(LoginDTO loginDto);
+
+    /**
+     * 发送验证码。
+     *
+     * @param dto 目标、目标类型、场景
+     * @return 过期时间及重发间隔
+     * @throws com.campus.food.campusfood.exception.BizException 参数错误或发送过于频繁时
+     */
+    SendCodeVO sendCode(SendCodeDTO dto);
 }

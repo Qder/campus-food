@@ -2,6 +2,7 @@ package com.campus.food.campusfood.service.impl;
 
 import com.campus.food.campusfood.dto.LoginDTO;
 import com.campus.food.campusfood.dto.RegisterDTO;
+import com.campus.food.campusfood.dto.SendCodeDTO;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.UserMapper;
@@ -9,12 +10,17 @@ import com.campus.food.campusfood.service.AuthService;
 import com.campus.food.campusfood.util.JwtUtil;
 import com.campus.food.campusfood.vo.LoginVO;
 import com.campus.food.campusfood.vo.RegisterVO;
+import com.campus.food.campusfood.vo.SendCodeVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 注册与登录实现。密码只存 BCrypt，登录失败对外使用同一文案。
@@ -22,6 +28,7 @@ import java.time.LocalDateTime;
  * @author yang
  * @since 2026-10-16
  */
+@Slf4j
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -43,6 +50,10 @@ public class AuthServiceImpl implements AuthService {
     private static final int NICKNAME_MAX_LEN = 20;
     /** 登录失败的统一文案，避免区分账号不存在和密码错误 */
     private static final String LOGIN_FAILED_MSG = "账号或密码错误";
+    /** 验证码过期时间（秒） */
+    private static final int CODE_EXPIRE_SECONDS = 300;
+    /** 重发限制时间（秒） */
+    private static final int RESEND_LIMIT_SECONDS = 60;
 
     @Autowired
     private UserMapper sysUserMapper;
@@ -52,6 +63,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * {@inheritDoc}
@@ -143,6 +157,59 @@ public class AuthServiceImpl implements AuthService {
         vo.setNickname(user.getNickname());
         vo.setRoleId(user.getRoleId());
         vo.setToken(jwtUtil.generateToken(user.getId(), user.getRoleId()));
+        return vo;
+    }
+
+    @Override
+    public SendCodeVO sendCode(SendCodeDTO dto) {
+        // 实现发送验证码的逻辑
+        String target = trimToNull(dto.getTarget());
+        String type = trimToNull(dto.getTargetType());
+        String scene = trimToNull(dto.getScene());
+
+        if(target==null)
+        {
+            throw new BizException("target 不能为空");
+        }
+
+        if(!"PHONE".equals(type) && !"EMAIL".equals(type))
+        {
+            throw new BizException("targetType不合法");
+        }
+
+        if (!"REGISTER".equals(scene) && !"RESET".equals(scene)) {
+            throw new BizException("scene 不合法");
+        }
+
+        if ("PHONE".equals(type)) {
+            if (!target.matches("^1[3-9]\\d{9}$")) {
+                throw new BizException("手机号格式不正确");
+            }
+        } else {
+            if (!target.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                throw new BizException("邮箱格式不正确");
+            }
+            target = target.toLowerCase();
+        }
+
+        //redis 限流，防止频繁发送验证码
+        String limitKey = String.format("auth:code:limit:%s:%s:%s", scene, type, target);
+        Boolean limitSuccess = stringRedisTemplate.opsForValue()
+                .setIfAbsent(limitKey, "1", RESEND_LIMIT_SECONDS, TimeUnit.SECONDS);
+
+        if (!Boolean.TRUE.equals(limitSuccess)) {
+            throw new BizException("验证码发送过于频繁，请稍后再试");
+        }
+
+        String code = String.format("%06d", new SecureRandom().nextInt(1000000));
+        String codeKey = String.format("auth:code:%s:%s:%s", scene, type, target);
+        stringRedisTemplate.opsForValue().set(codeKey, code, CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+
+        log.info("验证码 target={}, code={}", target, code);
+
+        SendCodeVO vo = new SendCodeVO();
+        vo.setExpireIn(CODE_EXPIRE_SECONDS);
+        vo.setResendAfter(RESEND_LIMIT_SECONDS);
         return vo;
     }
 

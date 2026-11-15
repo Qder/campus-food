@@ -2,10 +2,12 @@ package com.campus.food.campusfood.controller;
 
 import com.campus.food.campusfood.dto.LoginDTO;
 import com.campus.food.campusfood.dto.RegisterDTO;
+import com.campus.food.campusfood.dto.SendCodeDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.AuthService;
 import com.campus.food.campusfood.vo.LoginVO;
 import com.campus.food.campusfood.vo.RegisterVO;
+import com.campus.food.campusfood.vo.SendCodeVO;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,5 +50,17 @@ public class AuthController {
     @PostMapping("/login")
     public LoginVO login(@Valid @RequestBody LoginDTO dto) {
         return authService.login(dto);
+    }
+
+    /**
+     * 发送验证码。
+     *
+     * @param dto 目标、目标类型、场景
+     * @return 过期时间及重发间隔
+     * @throws BizException 参数错误或发送过于频繁时
+     */
+    @PostMapping("/code")
+    public SendCodeVO sendCode(@Valid @RequestBody SendCodeDTO dto) {
+        return authService.sendCode(dto);
     }
 }
