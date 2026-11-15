@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 发表评价，对应 {@code POST /food/{id}/reviews}。
  *
@@ -24,4 +26,8 @@ public class CreateReviewDTO {
     /** 评价内容，最长 2000 字，可为空 */
     @Size(max = 2000, message = "评价内容过长")
     private String content;
+
+    /** 评价图片地址，最多 9 张，可为空；元素由服务层逐个校验 */
+    @Size(max = 9, message = "最多上传9张图片")
+    private List<String> images;
 }

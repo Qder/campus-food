@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.ReviewImageMapper">
+
+    <insert id="batchInsert">
+        INSERT INTO review_image (review_id, url, sort_no)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.reviewId}, #{item.url}, #{item.sortNo})
+        </foreach>
+    </insert>
+
+    <select id="selectByReviewIds" resultType="com.campus.food.campusfood.entity.ReviewImage">
+        SELECT
+        id,
+        review_id AS reviewId,
+        url,
+        sort_no AS sortNo,
+        created_at AS createdAt
+        FROM review_image
+        WHERE review_id IN
+        <foreach collection="reviewIds" item="reviewId" open="(" separator="," close=")">
+            #{reviewId}
+        </foreach>
+        ORDER BY review_id ASC, sort_no ASC, id ASC
+    </select>
+
+</mapper>

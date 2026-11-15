@@ -47,4 +47,27 @@
           AND status = 1
     </select>
 
+    <select id="selectVisibleById" resultType="com.campus.food.campusfood.vo.FoodReviewVO">
+        SELECT
+            r.id,
+            r.user_id AS userId,
+            u.nickname,
+            r.food_id AS foodId,
+            r.score,
+            r.content,
+            r.like_count AS likeCount,
+            r.created_at AS createdAt
+        FROM food_review r
+                 LEFT JOIN sys_user u ON u.id = r.user_id AND u.deleted = 0
+        WHERE r.id = #{id}
+          AND r.audit_status = 1
+          AND r.status = 1
+    </select>
+
+    <update id="incrementLikeCount">
+        UPDATE food_review
+        SET like_count = GREATEST(CAST(like_count AS SIGNED) + #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
 </mapper>

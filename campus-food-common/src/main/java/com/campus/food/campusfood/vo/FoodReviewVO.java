@@ -3,6 +3,8 @@ package com.campus.food.campusfood.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 评价视图对象，用于评价列表与发表评价后的回显。
@@ -33,6 +35,9 @@ public class FoodReviewVO {
 
     /** 点赞数 */
     private Integer likeCount;
+
+    /** 评价图片地址，无图时为空列表而非 null */
+    private List<String> images = new ArrayList<>();
 
     /** 创建时间 */
     private LocalDateTime createdAt;

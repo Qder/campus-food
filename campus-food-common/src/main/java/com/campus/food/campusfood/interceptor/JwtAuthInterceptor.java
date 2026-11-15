@@ -84,9 +84,15 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * {@inheritDoc}
+     * 请求处理完成后清理当前线程的用户身份。
      *
-     * <p>无论成功失败都清理 {@link UserContext}，避免线程池复用串用户。
+     * <p>无论处理器是否抛异常都会回调；但只有 {@code preHandle} 返回 {@code true} 时才会执行。
+     * 这里调用 {@link UserContext#clear()}，避免线程池复用导致用户身份串号。
+     *
+     * @param request  当前请求
+     * @param response 当前响应
+     * @param handler  被执行的处理器
+     * @param ex       处理器抛出的异常，正常结束时为 {@code null}
      */
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request,
@@ -150,7 +156,8 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
                 || uri.matches(".*/food/list/?$")
                 || uri.matches(".*/food/search/?$")
                 || uri.matches(".*/food/\\d+/?$")
-                || uri.matches(".*/food/\\d+/reviews/?$");
+                || uri.matches(".*/food/\\d+/reviews/?$")
+                || uri.matches(".*/food/reviews/\\d+/replies/?$");
     }
 
     private static String requestPathWithoutQuery(HttpServletRequest request) {

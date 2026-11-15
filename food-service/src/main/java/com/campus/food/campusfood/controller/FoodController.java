@@ -1,15 +1,12 @@
 package com.campus.food.campusfood.controller;
 
 import com.campus.food.campusfood.common.UserContext;
+import com.campus.food.campusfood.dto.CreateReplyDTO;
 import com.campus.food.campusfood.dto.CreateReviewDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.FoodReviewService;
 import com.campus.food.campusfood.service.FoodService;
-import com.campus.food.campusfood.vo.FoodCategoryVO;
-import com.campus.food.campusfood.vo.FoodItemVO;
-import com.campus.food.campusfood.vo.FoodRecommendVO;
-import com.campus.food.campusfood.vo.FoodReviewVO;
-import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -121,6 +118,44 @@ public class FoodController {
     public FoodReviewVO createReview(@PathVariable Long id,
                                      @Valid @RequestBody CreateReviewDTO dto) {
         return foodReviewService.create(id, dto);
+    }
+
+    /**
+     * 点赞或取消点赞评价，需 JWT；已点赞再次调用即为取消。
+     *
+     * @param id 评价 ID
+     * @return 切换后的点赞状态与最新点赞数
+     * @throws BizException 未登录，或评价不存在/不可见时
+     */
+    @PostMapping("/reviews/{id}/like")
+    public ReviewLikeVO toggleLike(@PathVariable Long id) {
+        return foodReviewService.toggleLike(id);
+    }
+
+    /**
+     * 回复评价，需 JWT。
+     *
+     * @param id  评价 ID
+     * @param dto 回复内容
+     * @return 新建的回复
+     * @throws BizException 未登录、评价不存在/不可见或内容为空时
+     */
+    @PostMapping("/reviews/{id}/replies")
+    public ReviewReplyVO addReply(@PathVariable Long id,
+                                  @Valid @RequestBody CreateReplyDTO dto) {
+        return foodReviewService.addReply(id, dto);
+    }
+
+    /**
+     * 评价回复列表，无需登录，按回复时间正序。
+     *
+     * @param id 评价 ID
+     * @return 回复列表；无回复返回空数组
+     * @throws BizException 评价不存在或不可见时
+     */
+    @GetMapping("/reviews/{id}/replies")
+    public List<ReviewReplyVO> replies(@PathVariable Long id) {
+        return foodReviewService.listReplies(id);
     }
 
     /**

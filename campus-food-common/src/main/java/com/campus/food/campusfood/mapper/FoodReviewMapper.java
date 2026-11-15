@@ -51,4 +51,21 @@ public interface FoodReviewMapper {
      * @return 用户-菜品-评分；无数据返回空列表
      */
     List<FoodRatingPair> selectRatingPairs();
+
+    /**
+     * 按主键查询可见评价（审核通过且展示中）。
+     *
+     * @param id 评价 ID
+     * @return 可见评价；不存在或不可见返回 null
+     */
+    FoodReviewVO selectVisibleById(@Param("id") Long id);
+
+    /**
+     * 原子增减点赞数，结果不小于 0。
+     *
+     * @param id    评价 ID
+     * @param delta 增量，点赞传 1，取消点赞传 -1
+     * @return 影响行数
+     */
+    int incrementLikeCount(@Param("id") Long id, @Param("delta") int delta);
 }

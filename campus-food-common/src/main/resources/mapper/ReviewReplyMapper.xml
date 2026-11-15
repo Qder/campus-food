@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.ReviewReplyMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO review_reply (
+            review_id, user_id, reply_to_uid, content,
+            from_merchant, audit_status, created_at
+        ) VALUES (
+                     #{reviewId}, #{userId}, #{replyToUid}, #{content},
+                     #{fromMerchant}, #{auditStatus}, #{createdAt}
+                 )
+    </insert>
+
+    <select id="selectByReviewId" resultType="com.campus.food.campusfood.vo.ReviewReplyVO">
+        SELECT
+            r.id,
+            r.review_id AS reviewId,
+            r.user_id AS userId,
+            u.nickname,
+            r.content,
+            r.created_at AS createdAt
+        FROM review_reply r
+                 LEFT JOIN sys_user u ON u.id = r.user_id AND u.deleted = 0
+        WHERE r.review_id = #{reviewId}
+          AND r.audit_status = 1
+        ORDER BY r.created_at ASC, r.id ASC
+    </select>
+
+</mapper>
