@@ -25,6 +25,7 @@ export interface RegisterDTO {
   email?: string;
   password: string;
   nickname: string;
+  code: string;
 }
 
 export interface RegisterVO {
@@ -43,6 +44,20 @@ export interface LoginVO {
   nickname: string;
   roleId: number;
   token: string;
+}
+
+export type CodeTargetType = "PHONE" | "EMAIL";
+export type CodeScene = "REGISTER" | "RESET";
+
+export interface SendCodeDTO {
+  target: string;
+  targetType: CodeTargetType;
+  scene: CodeScene;
+}
+
+export interface SendCodeVO {
+  expireIn: number;
+  resendAfter: number;
 }
 
 /* ---------- 用户 ---------- */

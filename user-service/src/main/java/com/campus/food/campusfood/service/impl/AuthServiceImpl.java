@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,6 +55,8 @@ public class AuthServiceImpl implements AuthService {
     private static final int CODE_EXPIRE_SECONDS = 300;
     /** 重发限制时间（秒） */
     private static final int RESEND_LIMIT_SECONDS = 60;
+    /** 注册场景码，与 {@code /auth/code} 的 scene 一致 */
+    private static final String SCENE_REGISTER = "REGISTER";
 
     @Autowired
     private UserMapper sysUserMapper;
@@ -100,6 +103,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BizException("该邮箱已被注册");
         }
 
+        String targetType = phone != null ? "PHONE" : "EMAIL";
+        String target = phone != null ? phone : email.toLowerCase(Locale.ROOT);
+        String registerCodeKey = verifyCode(SCENE_REGISTER, targetType, target, dto.getCode());
+
         String passwordHash = encoder.encode(password);
 
         User user = new User();
@@ -119,12 +126,41 @@ public class AuthServiceImpl implements AuthService {
         } catch (DuplicateKeyException e) {
             throw new BizException("手机号或邮箱已被注册");
         }
+        // 注册成功后删除验证码，避免重复使用；删除失败不影响注册结果
+        try {
+            stringRedisTemplate.delete(registerCodeKey);
+        } catch (Exception e) {
+            log.warn("注册成功但删除验证码失败, key={}", registerCodeKey, e);
+        }
 
         RegisterVO vo = new RegisterVO();
         vo.setId(user.getId());
         vo.setNickname(user.getNickname());
         vo.setRoleId(user.getRoleId());
         return vo;
+    }
+
+    /**
+     * 校验验证码。只读不删，删除由调用方在业务成功后执行。
+     *
+     * <p>场景、目标类型和目标共同定位 Redis 中的验证码；不存在、已过期或不匹配
+     * 都抛同一文案，不向调用方区分原因。
+     *
+     * @param scene      场景，REGISTER / RESET
+     * @param targetType 目标类型，PHONE / EMAIL
+     * @param target     手机号，或已转小写的邮箱
+     * @param code       请求提交的验证码
+     * @return 验证码在 Redis 中的 key，供业务成功后删除
+     * @throws BizException 验证码不存在、已过期或不匹配时
+     */
+    private String verifyCode(String scene, String targetType, String target, String code) {
+        String submitted = code == null ? null : code.trim();
+        String codeKey = String.format("auth:code:%s:%s:%s", scene, targetType, target);
+        String expected = stringRedisTemplate.opsForValue().get(codeKey);
+        if (expected == null || !expected.equals(submitted)) {
+            throw new BizException("验证码错误或已过期");
+        }
+        return codeKey;
     }
 
     /**
@@ -162,7 +198,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public SendCodeVO sendCode(SendCodeDTO dto) {
-        // 实现发送验证码的逻辑
         String target = trimToNull(dto.getTarget());
         String type = trimToNull(dto.getTargetType());
         String scene = trimToNull(dto.getScene());

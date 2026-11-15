@@ -31,7 +31,7 @@ public class AuthController {
     /**
      * 注册新用户，默认角色为普通用户。
      *
-     * @param dto 手机号或邮箱、密码、昵称
+     * @param dto 手机号或邮箱、密码、昵称、验证码
      * @return 新建用户的公开字段，不含密码
      * @throws BizException 账号已注册或字段不合法时
      */

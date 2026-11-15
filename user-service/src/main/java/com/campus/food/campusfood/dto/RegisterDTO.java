@@ -35,6 +35,13 @@ public class RegisterDTO {
     private String nickname;
 
     /**
+     * 注册验证码，取自 {@code POST /auth/code}（scene=REGISTER）。
+     * 6 位数字，5 分钟内有效，注册成功后即作废。
+     */
+    @NotBlank(message = "验证码不能为空")
+    private String code;
+
+    /**
      * Bean Validation 回调：手机号、邮箱至少填一项。
      *
      * @return 至少有一项非空白时为 true

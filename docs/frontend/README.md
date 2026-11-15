@@ -78,13 +78,15 @@ export default defineConfig({
 
 ## 按模块：先做已实现的
 
-下面只列**现网已通**的路径。标了还没做的（验证码、上传、轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
+下面只列**现网已通**的路径。标了还没做的（上传、轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
 
 ### 登录（文档第 1 章）
 
-`POST /auth/register`　`POST /auth/login`（不用 Token）
+`POST /auth/register`　`POST /auth/login`　`POST /auth/code`（都不用 Token）
 
 登录返回 `token`、`id`、`nickname`、`roleId`，存本地。没有退出接口，清本地即可。
+
+验证码是 Mock 的：`POST /auth/code` 只返回 `expireIn`/`resendAfter`，真实验证码打印在 user-service 控制台。注册必须带 `code`（先发码，`scene=REGISTER`）；同时填手机号和邮箱时按手机号校验。
 
 ### 个人中心（第 2 章）
 

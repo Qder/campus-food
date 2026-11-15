@@ -18,9 +18,13 @@ public interface AuthService {
     /**
      * 注册新用户。手机号与邮箱至少填一个，默认角色为普通用户。
      *
+     * <p>需先调用 {@code POST /auth/code}（scene=REGISTER）获取验证码，注册时一并提交。
+     * 同时填手机号和邮箱时，只校验手机号收到的验证码。
+     *
      * @param registerDto 注册信息，不能为空
      * @return 新建用户的公开字段，不含密码
-     * @throws com.campus.food.campusfood.exception.BizException 账号已注册或字段不合法时
+     * @throws com.campus.food.campusfood.exception.BizException
+     *         验证码错误或已过期、账号已注册、字段不合法时
      */
     RegisterVO register(RegisterDTO registerDto);
 
