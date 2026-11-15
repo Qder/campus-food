@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +45,17 @@ public class GlobalExceptionHandler {
         FieldError fe = e.getBindingResult().getFieldError();
         String msg = fe != null ? fe.getDefaultMessage() : "参数校验失败";
         return ResponseEntity.badRequest().body(body(400, msg));
+    }
+
+    /**
+     * 上传文件超过 multipart 限制时返回统一文案。
+     *
+     * @param e 文件超限异常
+     * @return 含 code、message 的 400 响应
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return ResponseEntity.badRequest().body(body(400, "图片不能超过 5MB"));
     }
 
     /**

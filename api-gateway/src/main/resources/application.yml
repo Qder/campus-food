@@ -12,7 +12,7 @@ spring:
             - id: user-service
               uri: lb://user-service
               predicates:
-                - Path=/auth/**,/user/**
+                - Path=/auth/**,/user/**,/uploads/**
             - id: food-service
               uri: lb://food-service
               predicates:

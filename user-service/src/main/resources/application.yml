@@ -1,6 +1,8 @@
 server:
   port: 8081
-
+  tomcat:
+    # 上传超限时让 Tomcat 读完请求体再返回 400，否则客户端可能只看到连接重置
+    max-swallow-size: -1
 spring:
   application:
     name: user-service
@@ -13,6 +15,10 @@ spring:
     redis:
       host: localhost
       port: 6379
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
@@ -25,6 +31,10 @@ jwt:
   expire-minutes: 120
   header: "Authorization"
   prefix: "Bearer "
+
+app:
+  upload:
+    dir: ./uploads
 
 eureka:
   client:
