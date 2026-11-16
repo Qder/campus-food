@@ -163,6 +163,35 @@ export interface UploadVO {
   size: number;
 }
 
+export interface UserPublicVO {
+  id: number;
+  nickname: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  school: string | null;
+  major: string | null;
+  /** 动态是否公开：1 是，0 否 */
+  privacyFeed: number;
+}
+
+export interface NoticeDTO {
+  /** 最长 128 字 */
+  title: string;
+  content: string;
+  /** 0 草稿（默认），1 发布 */
+  publishStatus?: 0 | 1;
+}
+
+export interface NoticeVO {
+  id: number;
+  title: string;
+  content: string;
+  publishStatus: 0 | 1;
+  /** 草稿为 null */
+  publishedAt: string | null;
+  createdAt: string;
+}
+
 /* ---------- 美食 ---------- */
 
 export interface FoodCategoryVO {

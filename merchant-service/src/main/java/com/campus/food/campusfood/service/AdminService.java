@@ -4,14 +4,16 @@ import java.util.List;
 
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.NoticeDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.Merchant;
+import com.campus.food.campusfood.vo.NoticeVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
 
 /**
- * 平台管理员：店铺审核与用户列表。
+ * 平台管理员：店铺审核、用户列表与公告。
  *
  * @author yang
  * @since 2026-10-16
@@ -72,4 +74,8 @@ public interface AdminService {
      *                                                           封禁原因为空、封禁自己或用户服务不可用时
      */
     void setUserStatus(Long id, UserStatusUpdateDTO dto);
+
+    NoticeVO createNotice(NoticeDTO noticeDTO);
+
+    List<NoticeVO> listNotices(Integer publishStatus);
 }

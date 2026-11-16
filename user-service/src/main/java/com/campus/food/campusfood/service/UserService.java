@@ -130,4 +130,6 @@ public interface UserService {
     void deleteFeed(Long id);
 
     UserPublicVO getPublicProfile(Long id);
+
+    List<NoticeVO> listPublishedNotices();
 }

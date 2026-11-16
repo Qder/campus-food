@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前登录用户资料接口，均需 JWT。
+ * 用户资料与公告接口。除 {@code GET /user/notices} 外均需 JWT。
  *
  * @author yang
  * @since 2026-10-16
@@ -129,5 +129,15 @@ public class UserController {
     @GetMapping("/{id}/public")
     public UserPublicVO getPublicProfile(@PathVariable Long id) {
         return userService.getPublicProfile(id);
+    }
+
+    /**
+     * 平台公告列表，免登录，只返回已发布公告，按发布时间倒序，最多 100 条。
+     *
+     * @return 公告列表，无数据时为空数组
+     */
+    @GetMapping("/notices")
+    public List<NoticeVO> listNotices() {
+        return userService.listPublishedNotices();
     }
 }

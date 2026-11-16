@@ -94,7 +94,9 @@ export default defineConfig({
 `GET/POST/DELETE /user/favorites`  
 `GET/PUT /user/reminders`  
 `GET/POST /user/feeds`　`DELETE /user/feeds/{id}`  
-`POST /user/upload`（multipart：`file` + `bizType`，返回 `url`/`size`，图片地址先传再写进其它接口）
+`POST /user/upload`（multipart：`file` + `bizType`，返回 `url`/`size`，图片地址先传再写进其它接口）  
+`GET /user/{id}/public`（看别人的公开资料；只有昵称、头像、简介、学校、专业、privacyFeed）  
+`GET /user/notices`（平台公告，不用登录，只返回已发布）
 
 ### 美食（第 3 章）
 
@@ -147,7 +149,8 @@ export default defineConfig({
 已实现：`GET /admin/merchants/pending`　`POST /admin/merchants`　`PUT .../approve`　`PUT .../reject`  
 `GET /admin/users`（`keyword` `status` `page` `size` 均可省略）  
 `PUT /admin/users/{id}/status`（body：`status` 0 封禁 / 1 恢复，封禁时 `reason` 必填）  
-要 `roleId === 3`。公告、报表文档标了还没做。
+`POST /admin/notices`（发布或存草稿，body：`title` `content` `publishStatus`）　`GET /admin/notices?publishStatus=`  
+要 `roleId === 3`。报表文档标了还没做。
 
 ---
 

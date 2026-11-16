@@ -37,6 +37,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/auth/login",
                         "/auth/code",
                         "/user/ping",
+                        "/user/notices",
                         "/food/ping",
                         "/merchant/ping",
                         "/order/ping",

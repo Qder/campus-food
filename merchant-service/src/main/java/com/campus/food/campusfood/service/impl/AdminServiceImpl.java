@@ -4,15 +4,19 @@ import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantQueryDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.NoticeDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.Merchant;
+import com.campus.food.campusfood.entity.PlatformNotice;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.MerchantMapper;
+import com.campus.food.campusfood.mapper.PlatformNoticeMapper;
 import com.campus.food.campusfood.service.AdminService;
+import com.campus.food.campusfood.vo.NoticeVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
 import com.campus.food.campusfood.vo.UserStatusUpdateVO;
@@ -22,11 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * 管理员店铺审核实现。通过或代建时把店主角色升为商家。
+ * 管理员店铺审核、用户与公告实现。通过或代建时把店主角色升为商家。
  *
  * @author yang
  * @since 2026-10-16
@@ -46,12 +51,19 @@ public class AdminServiceImpl implements AdminService {
     private static final int DEFAULT_SIZE = 10;
     /** 用户列表每页条数上限 */
     private static final int MAX_SIZE = 50;
+    /** 公告状态：草稿 */
+    private static final int NOTICE_DRAFT = 0;
+    /** 公告状态：已发布 */
+    private static final int NOTICE_PUBLISHED = 1;
 
     @Autowired
     private MerchantMapper merchantMapper;
 
     @Autowired
     private UserFeignClient userFeignClient;
+
+    @Autowired
+    private PlatformNoticeMapper platformNoticeMapper;
 
     /** {@inheritDoc} */
     @Override
@@ -274,5 +286,66 @@ public class AdminServiceImpl implements AdminService {
         if (result == null || !result.isSuccess()) {
             throw new BizException(result == null ? "用户服务不可用" : result.getMessage());
         }
+    }
+
+    @Override
+    public NoticeVO createNotice(NoticeDTO noticeDTO) {
+        if (noticeDTO == null) {
+            throw new BizException("公告信息不能为空");
+        }
+        int publishStatus = noticeDTO.getPublishStatus() == null ? NOTICE_DRAFT : noticeDTO.getPublishStatus();
+        if (publishStatus != NOTICE_DRAFT && publishStatus != NOTICE_PUBLISHED) {
+            throw new BizException("发布状态不合法：0 草稿，1 发布");
+        }
+        Long publisherId = requireAdminUserId();
+
+        LocalDateTime now = LocalDateTime.now();
+        PlatformNotice notice = new PlatformNotice();
+        notice.setTitle(noticeDTO.getTitle().trim());
+        notice.setContent(noticeDTO.getContent().trim());
+        notice.setPublishStatus(publishStatus);
+        notice.setPublisherId(publisherId);
+        notice.setPublishedAt(publishStatus == NOTICE_PUBLISHED ? now : null);
+        notice.setCreatedAt(now);
+        notice.setUpdatedAt(now);
+
+        int rows = platformNoticeMapper.insert(notice);
+        if (rows <= 0) {
+            throw new BizException("保存公告失败");
+        }
+        return toNoticeVo(notice);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * publishStatus 为空时返回全部公告。
+     */
+    @Override
+    public List<NoticeVO> listNotices(Integer publishStatus) {
+        if (publishStatus != null && publishStatus != NOTICE_DRAFT && publishStatus != NOTICE_PUBLISHED) {
+            throw new BizException("发布状态不合法：0 草稿，1 发布");
+        }
+        List<PlatformNotice> rows = platformNoticeMapper.selectAll(publishStatus);
+        List<NoticeVO> result = new ArrayList<>();
+        if (rows != null) {
+            for (PlatformNotice row : rows) {
+                result.add(toNoticeVo(row));
+            }
+        }
+        return result;
+    }
+
+    /** 公告实体转展示 VO，只映射接口约定的字段。 */
+    private NoticeVO toNoticeVo(PlatformNotice notice) {
+        NoticeVO vo = new NoticeVO();
+        vo.setId(notice.getId());
+        vo.setTitle(notice.getTitle());
+        vo.setContent(notice.getContent());
+        vo.setPublishStatus(notice.getPublishStatus());
+        vo.setPublishedAt(notice.getPublishedAt());
+        vo.setCreatedAt(notice.getCreatedAt());
+        return vo;
     }
 }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.PlatformNoticeMapper">
+
+    <sql id="Base_Column_List">
+        id, title, content, publish_status, publisher_id, published_at, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.PlatformNotice"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO platform_notice (
+            title, content, publish_status, publisher_id, published_at, created_at, updated_at
+        ) VALUES (
+                     #{title}, #{content}, #{publishStatus}, #{publisherId}, #{publishedAt}, #{createdAt}, #{updatedAt}
+                 )
+    </insert>
+
+    <select id="selectAll" resultType="com.campus.food.campusfood.entity.PlatformNotice">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM platform_notice
+        <where>
+            <if test="publishStatus != null">
+                publish_status = #{publishStatus}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT 100
+    </select>
+
+    <select id="selectPublished" resultType="com.campus.food.campusfood.entity.PlatformNotice">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM platform_notice
+        WHERE publish_status = 1
+        ORDER BY published_at DESC
+        LIMIT 100
+    </select>
+</mapper>

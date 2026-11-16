@@ -3,9 +3,11 @@ package com.campus.food.campusfood.controller;
 import com.campus.food.campusfood.aspect.AdminOnly;
 import com.campus.food.campusfood.dto.MerchantCreateDTO;
 import com.campus.food.campusfood.dto.MerchantRejectDTO;
+import com.campus.food.campusfood.dto.NoticeDTO;
 import com.campus.food.campusfood.dto.UserListQueryDTO;
 import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.service.AdminService;
+import com.campus.food.campusfood.vo.NoticeVO;
 import com.campus.food.campusfood.vo.PageVO;
 import com.campus.food.campusfood.vo.UserListVO;
 
@@ -27,7 +29,7 @@ import com.campus.food.campusfood.exception.BizException;
 import java.util.List;
 
 /**
- * 平台管理员的店铺审核接口。类上的 {@link AdminOnly} 要求角色为管理员，且请求须带 JWT。
+ * 平台管理员接口：店铺审核、用户管理与公告。类上的 {@link AdminOnly} 要求角色为管理员，且请求须带 JWT。
  *
  * @author yang
  * @since 2026-10-16
@@ -115,5 +117,30 @@ public class AdminController {
             @Valid @RequestBody UserStatusUpdateDTO dto) {
         adminService.setUserStatus(id, dto);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 发布公告或存草稿。publishStatus=1 时写入发布时间，省略按 0 草稿处理。
+     *
+     * @param noticeDTO 标题、正文与发布状态
+     * @return 落库后的公告
+     * @throws BizException 未登录、标题或正文为空、发布状态不合法时
+     */
+    @PostMapping("/notices")
+    public ResponseEntity<NoticeVO> createNotice(@Valid @RequestBody NoticeDTO noticeDTO) {
+        return ResponseEntity.ok(adminService.createNotice(noticeDTO));
+    }
+
+    /**
+     * 管理端公告列表，按创建时间倒序，最多 100 条。
+     *
+     * @param publishStatus 0 草稿 / 1 已发布，省略表示全部
+     * @return 公告列表，无数据时为空数组
+     * @throws BizException 发布状态不合法时
+     */
+    @GetMapping("/notices")
+    public ResponseEntity<List<NoticeVO>> listNotices(
+            @RequestParam(required = false) Integer publishStatus) {
+        return ResponseEntity.ok(adminService.listNotices(publishStatus));
     }
 }

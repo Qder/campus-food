@@ -9,6 +9,7 @@ import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.entity.Merchant;
+import com.campus.food.campusfood.entity.PlatformNotice;
 import com.campus.food.campusfood.entity.User;
 import com.campus.food.campusfood.entity.UserFavorities;
 import com.campus.food.campusfood.entity.UserFeedPost;
@@ -18,6 +19,7 @@ import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserInfo;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
+import com.campus.food.campusfood.mapper.PlatformNoticeMapper;
 import com.campus.food.campusfood.mapper.UserFavoriteMapper;
 import com.campus.food.campusfood.mapper.UserFeedPostMapper;
 import com.campus.food.campusfood.mapper.UserMapper;
@@ -26,7 +28,16 @@ import com.campus.food.campusfood.mapper.UserReminderMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.enums.FoodItemStatus;
-import com.campus.food.campusfood.vo.*;
+import com.campus.food.campusfood.vo.FavoriteAddVO;
+import com.campus.food.campusfood.vo.FavoritiesVO;
+import com.campus.food.campusfood.vo.FeedPublishVO;
+import com.campus.food.campusfood.vo.FeedVO;
+import com.campus.food.campusfood.vo.NoticeVO;
+import com.campus.food.campusfood.vo.PageVO;
+import com.campus.food.campusfood.vo.RemindVO;
+import com.campus.food.campusfood.vo.UserListVO;
+import com.campus.food.campusfood.vo.UserProfileVO;
+import com.campus.food.campusfood.vo.UserPublicVO;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -101,6 +112,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserFeedPostMapper userFeedPostMapper;
+
+    @Autowired
+    private PlatformNoticeMapper platformNoticeMapper;
 
     /**
      * {@inheritDoc}
@@ -675,6 +689,41 @@ public class UserServiceImpl implements UserService {
             throw new BizException("用户不存在");
         }
         return toPublicProfileVo(user);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * 用户端只读已发布公告，按发布时间倒序，最多 100 条。
+     */
+    @Override
+    public List<NoticeVO> listPublishedNotices() {
+        List<PlatformNotice> rows = platformNoticeMapper.selectPublished();
+        List<NoticeVO> result = new ArrayList<>();
+        if (rows != null) {
+            for (PlatformNotice row : rows) {
+                result.add(toNoticeVo(row));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 公告实体转展示 VO。
+     *
+     * @param notice 公告实体
+     * @return 公告展示项
+     */
+    private NoticeVO toNoticeVo(PlatformNotice notice) {
+        NoticeVO vo = new NoticeVO();
+        vo.setId(notice.getId());
+        vo.setTitle(notice.getTitle());
+        vo.setContent(notice.getContent());
+        vo.setPublishStatus(notice.getPublishStatus());
+        vo.setPublishedAt(notice.getPublishedAt());
+        vo.setCreatedAt(notice.getCreatedAt());
+        return vo;
     }
 
     private UserPublicVO toPublicProfileVo(User user) {

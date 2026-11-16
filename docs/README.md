@@ -35,3 +35,10 @@
 - Eureka：`http://localhost:8761`
 - 各微服务直连：user **8081**、food **8082**、merchant **8083**、social **8084**（详见仓库根 [README.md](../README.md)）
 - 数据库：`campus_food`（见各服务 `*/src/main/resources/application.yml`）
+
+## 数据库脚本
+
+| 文件 | 说明 |
+|------|------|
+| [../sql/seed_all.sql](../sql/seed_all.sql) | 演示数据整库重置；执行前先备份，账号密码统一 `123456` |
+| [../sql/patch_feed_columns.sql](../sql/patch_feed_columns.sql) | 补齐 `user_feed_post` 的 `privacy` / `like_count`，可重复执行 |
