@@ -156,6 +156,13 @@ export interface FeedPublishVO {
   auditStatus: number;
 }
 
+export interface UploadVO {
+  /** 站内相对地址，前端拼 baseUrl 使用 */
+  url: string;
+  /** 文件字节数 */
+  size: number;
+}
+
 /* ---------- 美食 ---------- */
 
 export interface FoodCategoryVO {
@@ -196,6 +203,13 @@ export interface FoodRecommendVO {
 export interface CreateReviewDTO {
   score: number;
   content?: string;
+  /** 最多 9 张，地址来自 POST /user/upload */
+  images?: string[];
+}
+
+export interface CreateReplyDTO {
+  /** 1–1000 字 */
+  content: string;
 }
 
 export interface FoodReviewVO {
@@ -206,6 +220,23 @@ export interface FoodReviewVO {
   score: number;
   content: string | null;
   likeCount: number;
+  /** 无图时为空数组 */
+  images: string[];
+  createdAt: string;
+}
+
+export interface ReviewLikeVO {
+  reviewId: number;
+  liked: boolean;
+  likeCount: number;
+}
+
+export interface ReviewReplyVO {
+  id: number;
+  reviewId: number;
+  userId: number;
+  nickname: string | null;
+  content: string;
   createdAt: string;
 }
 

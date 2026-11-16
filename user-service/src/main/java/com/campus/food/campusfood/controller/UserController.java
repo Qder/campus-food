@@ -7,13 +7,7 @@ import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.UserService;
-import com.campus.food.campusfood.vo.FavoriteAddVO;
-import com.campus.food.campusfood.vo.FavoritiesVO;
-import com.campus.food.campusfood.vo.FeedPublishVO;
-import com.campus.food.campusfood.vo.FeedVO;
-import com.campus.food.campusfood.vo.PageVO;
-import com.campus.food.campusfood.vo.RemindVO;
-import com.campus.food.campusfood.vo.UserProfileVO;
+import com.campus.food.campusfood.vo.*;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -130,5 +124,10 @@ public class UserController {
     @DeleteMapping("/feeds/{id}")
     public void deleteFeed(@PathVariable Long id) {
         userService.deleteFeed(id);
+    }
+
+    @GetMapping("/{id}/public")
+    public UserPublicVO getPublicProfile(@PathVariable Long id) {
+        return userService.getPublicProfile(id);
     }
 }

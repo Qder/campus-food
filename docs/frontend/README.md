@@ -78,7 +78,7 @@ export default defineConfig({
 
 ## 按模块：先做已实现的
 
-下面只列**现网已通**的路径。标了还没做的（上传、轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
+下面只列**现网已通**的路径。标了还没做的（轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
 
 ### 登录（文档第 1 章）
 
@@ -93,12 +93,14 @@ export default defineConfig({
 `GET/PUT /user/profile`  
 `GET/POST/DELETE /user/favorites`  
 `GET/PUT /user/reminders`  
-`GET/POST /user/feeds`　`DELETE /user/feeds/{id}`
+`GET/POST /user/feeds`　`DELETE /user/feeds/{id}`  
+`POST /user/upload`（multipart：`file` + `bizType`，返回 `url`/`size`，图片地址先传再写进其它接口）
 
 ### 美食（第 3 章）
 
 不用登录：`GET /food/categories` `/food/list` `/food/search` `/food/{id}` `/food/{id}/reviews`  
-要登录：`GET /food/recommend`　`POST /food/{id}/reviews`
+要登录：`GET /food/recommend`　`POST /food/{id}/reviews`（可带 `images` 数组）  
+评价互动：`POST /food/reviews/{id}/like`（切换）　`POST/GET /food/reviews/{id}/replies`
 
 推荐不强制口味；未登录是 401，不会降级成热门。
 

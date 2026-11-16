@@ -26,14 +26,7 @@ import com.campus.food.campusfood.mapper.UserReminderMapper;
 import com.campus.food.campusfood.util.TagTextUtil;
 import com.campus.food.campusfood.service.UserService;
 import com.campus.food.campusfood.enums.FoodItemStatus;
-import com.campus.food.campusfood.vo.FavoriteAddVO;
-import com.campus.food.campusfood.vo.FavoritiesVO;
-import com.campus.food.campusfood.vo.FeedPublishVO;
-import com.campus.food.campusfood.vo.FeedVO;
-import com.campus.food.campusfood.vo.PageVO;
-import com.campus.food.campusfood.vo.RemindVO;
-import com.campus.food.campusfood.vo.UserListVO;
-import com.campus.food.campusfood.vo.UserProfileVO;
+import com.campus.food.campusfood.vo.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -449,7 +442,7 @@ public class UserServiceImpl implements UserService {
         Long userId = requireLoginUserId();
         List<RemindVO> result = new ArrayList<>();
         for (String type : REMIND_TYPES) {
-            UserReminder row = ensureReminder(userId, type, CHANNEL_INBOX, 1);
+            UserReminder row = ensureReminder(userId, type);
             result.add(toRemindVo(row));
         }
         return result;
@@ -477,7 +470,7 @@ public class UserServiceImpl implements UserService {
         if (!CHANNEL_INBOX.equals(channel)) {
             throw new BizException("不支持的提醒类型");
         }
-        int enabled = Boolean.TRUE.equals(dto.getEnabled()) ? 1 : 0;
+        int enabled = dto.getEnabled() ? 1 : 0;
         UserReminder existing = userReminderMapper.selectByUserAndType(userId, remindType);
         if (existing == null) {
             UserReminder row = new UserReminder();
@@ -513,17 +506,14 @@ public class UserServiceImpl implements UserService {
         }
         return userId;
     }
-
     /**
-     * 该类型尚无记录时插入一行。
+     * 该类型尚无记录时插入一行，渠道固定站内信、默认开启。
      *
      * @param userId     用户 ID
      * @param remindType 提醒类型
-     * @param channel    渠道
-     * @param enabled    1 开 / 0 关
      * @return 已有或新插入的行
      */
-    private UserReminder ensureReminder(Long userId, String remindType, String channel, int enabled) {
+    private UserReminder ensureReminder(Long userId, String remindType) {
         UserReminder existing = userReminderMapper.selectByUserAndType(userId, remindType);
         if (existing != null) {
             return existing;
@@ -531,8 +521,8 @@ public class UserServiceImpl implements UserService {
         UserReminder row = new UserReminder();
         row.setUserId(userId);
         row.setRemindType(remindType);
-        row.setChannel(channel);
-        row.setEnabled(enabled);
+        row.setChannel(CHANNEL_INBOX);
+        row.setEnabled(1);
         userReminderMapper.insert(row);
         return row;
     }
@@ -625,12 +615,12 @@ public class UserServiceImpl implements UserService {
             if (url == null || url.isBlank()) {
                 continue;
             }
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 sb.append(',');
             }
             sb.append(url.trim());
         }
-        return sb.length() == 0 ? null : sb.toString();
+        return sb.isEmpty() ? null : sb.toString();
     }
 
     @Override
@@ -642,7 +632,7 @@ public class UserServiceImpl implements UserService {
         if (dto.getImages() != null && dto.getImages().size() > 9) {
             throw new BizException("最多9张图片");
         }
-        Integer privacy = dto.getPrivacy() == null ? 1 : dto.getPrivacy();
+        int privacy = dto.getPrivacy() == null ? 1 : dto.getPrivacy();
         if (privacy != 0 && privacy != 1) {
             throw new BizException("隐私设置不合法");
         }
@@ -673,6 +663,29 @@ public class UserServiceImpl implements UserService {
         if (deleted <= 0) {
             throw new BizException("删除动态失败");
         }
+    }
+
+    @Override
+    public UserPublicVO getPublicProfile(Long id) {
+        if (id == null) {
+            throw new BizException("用户 ID 不能为空");
+        }
+        User user = userMapper.selectById(id);
+        if (user == null || (user.getDeleted() != null && user.getDeleted() != 0)) {
+            throw new BizException("用户不存在");
+        }
+        return toPublicProfileVo(user);
+    }
+
+    private UserPublicVO toPublicProfileVo(User user) {
+        UserPublicVO vo = new UserPublicVO();
+        vo.setId(user.getId());
+        vo.setNickname(user.getNickname());
+        vo.setAvatarUrl(user.getAvatarUrl());
+        vo.setSchool(user.getSchool());
+        vo.setMajor(user.getMajor());
+        vo.setBio(user.getBio());
+        return vo;
     }
 
     /**

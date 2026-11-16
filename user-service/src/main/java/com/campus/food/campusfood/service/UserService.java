@@ -9,14 +9,7 @@ import com.campus.food.campusfood.dto.ReminderDTO;
 import com.campus.food.campusfood.dto.UpdateProfileDTO;
 import com.campus.food.campusfood.dto.UserStatusUpdateDTO;
 import com.campus.food.campusfood.feign.UserInfo;
-import com.campus.food.campusfood.vo.FavoriteAddVO;
-import com.campus.food.campusfood.vo.FavoritiesVO;
-import com.campus.food.campusfood.vo.FeedPublishVO;
-import com.campus.food.campusfood.vo.FeedVO;
-import com.campus.food.campusfood.vo.PageVO;
-import com.campus.food.campusfood.vo.RemindVO;
-import com.campus.food.campusfood.vo.UserListVO;
-import com.campus.food.campusfood.vo.UserProfileVO;
+import com.campus.food.campusfood.vo.*;
 
 /**
  * 当前登录用户资料服务。
@@ -135,4 +128,6 @@ public interface UserService {
     FeedPublishVO addFeed(AddFeedDTO dto);
 
     void deleteFeed(Long id);
+
+    UserPublicVO getPublicProfile(Long id);
 }
