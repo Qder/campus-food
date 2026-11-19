@@ -55,6 +55,24 @@ public interface UserFeedPostService {
     List<UserFeedPost> selectByUserId(Long userId);
 
     /**
+     * 统计一批用户中公开动态的条数，供好友动态分页。
+     *
+     * @param userIds 用户 ID 列表，可为 null 或空
+     * @return 条数；入参为空时返回 0
+     */
+    int countPublicByUserIds(List<Long> userIds);
+
+    /**
+     * 分页查询一批用户的公开动态，按时间倒序。
+     *
+     * @param userIds 用户 ID 列表，可为 null 或空
+     * @param offset  偏移
+     * @param size    条数
+     * @return 当前页；入参为空时返回空列表
+     */
+    List<UserFeedPost> selectPublicPageByUserIds(List<Long> userIds, int offset, int size);
+
+    /**
      * 查询全部动态，按时间倒序。
      *
      * @return 动态列表；无数据返回空列表

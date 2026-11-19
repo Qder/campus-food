@@ -22,8 +22,10 @@ import com.campus.food.campusfood.vo.BlockResultVO;
 import com.campus.food.campusfood.vo.ChatMessagePageVO;
 import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
+import com.campus.food.campusfood.vo.FriendFeedVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
+import com.campus.food.campusfood.vo.PageVO;
 
 import jakarta.validation.Valid;
 
@@ -74,6 +76,20 @@ public class SocialController {
     @GetMapping("/friends")
     public List<FriendVo> getFriends() {
         return socialService.getFriends();
+    }
+
+    /**
+     * 好友动态：只含好友公开发布的动态，不含自己；时间倒序分页。
+     *
+     * @param page 页码，可省略，默认 1
+     * @param size 每页条数，可省略，默认 10，最大 50
+     * @return 分页；没有好友或没有公开动态时 total=0、list=[]
+     * @throws BizException 未登录时
+     */
+    @GetMapping("/feeds")
+    public PageVO<FriendFeedVO> getFriendFeeds(@RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size) {
+        return socialService.getFriendFeeds(page, size);
     }
 
     /**

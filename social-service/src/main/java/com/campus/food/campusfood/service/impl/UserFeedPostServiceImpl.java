@@ -62,6 +62,32 @@ public class UserFeedPostServiceImpl implements UserFeedPostService {
         return userFeedPostMapper.selectByUserId(userId);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>空集合直接返回 0，不再访问数据库。
+     */
+    @Override
+    public int countPublicByUserIds(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return 0;
+        }
+        return userFeedPostMapper.countPublicByUserIds(userIds);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>空集合直接返回空列表，避免发出 {@code WHERE user_id IN ()} 这类 SQL。
+     */
+    @Override
+    public List<UserFeedPost> selectPublicPageByUserIds(List<Long> userIds, int offset, int size) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return userFeedPostMapper.selectPublicPageByUserIds(userIds, offset, size);
+    }
+
     /** {@inheritDoc} */
     @Override
     public List<UserFeedPost> selectAll() {

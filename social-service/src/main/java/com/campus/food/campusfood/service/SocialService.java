@@ -12,6 +12,8 @@ import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
+import com.campus.food.campusfood.vo.FriendFeedVO;
+import com.campus.food.campusfood.vo.PageVO;
 
 /**
  * 社交业务门面：编排好友申请、同意/拒绝、好友关系、黑名单与私聊。
@@ -106,6 +108,19 @@ public interface SocialService {
      * @return 落库后的消息
      */
     ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto);
+
+    /**
+     * 当前用户好友公开发布的动态，时间倒序分页。
+     *
+     * <p>只含 {@code privacy=1} 且发布者是自己好友的动态，不含自己的；
+     * 作者昵称/头像经 user-service 补充，失败时昵称用「用户」。
+     *
+     * @param page 页码，从 1 开始；null 或小于 1 按 1
+     * @param size 每页条数；null 或小于 1 按 10，最大 50
+     * @return 分页；没有好友或没有公开动态时 {@code total=0}、{@code list=[]}
+     * @throws com.campus.food.campusfood.exception.BizException 未登录时
+     */
+    PageVO<FriendFeedVO> getFriendFeeds(Integer page, Integer size);
 
     /**
      * 拉黑对方：须已是好友、尚未拉黑。写入 {@code user_blacklist} 后双向解除好友。

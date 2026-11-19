@@ -24,6 +24,7 @@
 | [backend/Eureka注册与发现笔记.md](./backend/Eureka注册与发现笔记.md) | Eureka Server/Client、注册流程、Feign/Gateway 如何用服务名 |
 | [backend/推荐功能笔记.md](./backend/推荐功能笔记.md) | 推荐打分链路（对照源码） |
 | [backend/图片上传笔记.md](./backend/图片上传笔记.md) | 上传接口、静态资源映射、JWT 放行与网关路由 |
+| [backend/群聊实现讲解.md](./backend/群聊实现讲解.md) | 群聊（4.13）：时序图、分层调用链、输入 → 结果表 |
 | [backend/开发商店步骤.md](./backend/开发商店步骤.md) | 商家模块开发步骤（课设） |
 | [backend/apifox-merchant.md](./backend/apifox-merchant.md) | 商家接口 Apifox 测试说明 |
 | [backend/merchant-api-test.http](./backend/merchant-api-test.http) | REST Client 用例 |

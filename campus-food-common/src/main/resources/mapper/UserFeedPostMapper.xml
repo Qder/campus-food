@@ -67,6 +67,29 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="countPublicByUserIds" resultType="int">
+        SELECT COUNT(*)
+        FROM user_feed_post
+        WHERE privacy = 1
+          AND user_id IN
+        <foreach collection="userIds" item="userId" separator="," open="(" close=")">
+            #{userId}
+        </foreach>
+    </select>
+
+    <select id="selectPublicPageByUserIds" resultType="com.campus.food.campusfood.entity.UserFeedPost">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_feed_post
+        WHERE privacy = 1
+          AND user_id IN
+        <foreach collection="userIds" item="userId" separator="," open="(" close=")">
+            #{userId}
+        </foreach>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="selectAll" resultType="com.campus.food.campusfood.entity.UserFeedPost">
         SELECT
         <include refid="Base_Column_List"/>

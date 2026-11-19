@@ -29,6 +29,7 @@ import com.campus.food.campusfood.entity.ChatSessionMember;
 import com.campus.food.campusfood.entity.UserBlacklist;
 import com.campus.food.campusfood.entity.FriendRequest;
 import com.campus.food.campusfood.entity.Friendship;
+import com.campus.food.campusfood.entity.UserFeedPost;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
@@ -43,13 +44,16 @@ import com.campus.food.campusfood.mapper.UserBlacklistMapper;
 import com.campus.food.campusfood.repository.ChatMessageRepository;
 import com.campus.food.campusfood.service.FriendshipService;
 import com.campus.food.campusfood.service.SocialService;
+import com.campus.food.campusfood.service.UserFeedPostService;
 import com.campus.food.campusfood.vo.BlacklistItemVO;
 import com.campus.food.campusfood.vo.BlockResultVO;
 import com.campus.food.campusfood.vo.ChatMessagePageVO;
 import com.campus.food.campusfood.vo.ChatMessageVO;
 import com.campus.food.campusfood.vo.ChatSessionVO;
+import com.campus.food.campusfood.vo.FriendFeedVO;
 import com.campus.food.campusfood.vo.FriendRequestVo;
 import com.campus.food.campusfood.vo.FriendVo;
+import com.campus.food.campusfood.vo.PageVO;
 
 import feign.FeignException;
 
@@ -110,6 +114,7 @@ public class SocialServiceImpl implements SocialService {
     private final ChatMessageIndexMapper chatMessageIndexMapper;
     private final UserBlacklistMapper userBlacklistMapper;
     private final ChatMessageRepository chatMessageRepository;
+    private final UserFeedPostService userFeedPostService;
 
     /**
      * 构造注入 Mapper、Feign 客户端与 Redis 模板。
@@ -126,6 +131,7 @@ public class SocialServiceImpl implements SocialService {
      * @param chatMessageIndexMapper  消息索引表
      * @param userBlacklistMapper     拉黑只读查询
      * @param chatMessageRepository   Mongo 消息正文
+     * @param userFeedPostService     用户动态服务，好友动态按好友集合查询公开动态
      */
     public SocialServiceImpl(FriendRequestMapper friendRequestMapper,
             FriendshipMapper friendshipMapper,
@@ -138,7 +144,8 @@ public class SocialServiceImpl implements SocialService {
             ChatGroupMemberMapper chatGroupMemberMapper,
             ChatMessageIndexMapper chatMessageIndexMapper,
             UserBlacklistMapper userBlacklistMapper,
-            ChatMessageRepository chatMessageRepository) {
+            ChatMessageRepository chatMessageRepository,
+            UserFeedPostService userFeedPostService) {
         this.friendRequestMapper = friendRequestMapper;
         this.friendshipMapper = friendshipMapper;
         this.userFeignClient = userFeignClient;
@@ -151,6 +158,7 @@ public class SocialServiceImpl implements SocialService {
         this.chatMessageIndexMapper = chatMessageIndexMapper;
         this.userBlacklistMapper = userBlacklistMapper;
         this.chatMessageRepository = chatMessageRepository;
+        this.userFeedPostService = userFeedPostService;
     }
 
     /**
@@ -461,6 +469,106 @@ public class SocialServiceImpl implements SocialService {
         vo.setNickname(user.getNickname());
         vo.setAvatarUrl(user.getAvatarUrl());
         return vo;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>先取当前用户视角的好友 ID；没有好友时直接返回空分页，
+     * 不向数据库发 {@code IN ()}。作者资料同一页按 userId 缓存，只 Feign 一次；
+     * 查询失败时昵称用「用户」，不影响整页返回。
+     */
+    @Override
+    public PageVO<FriendFeedVO> getFriendFeeds(Integer page, Integer size) {
+        Long curId = requireCurUserId();
+        int p = page == null || page < 1 ? 1 : page;
+        int s = size == null || size < 1 ? 10 : Math.min(size, 50);
+
+        PageVO<FriendFeedVO> result = new PageVO<>();
+        result.setPage(p);
+        result.setSize(s);
+
+        List<Long> friendIds = new ArrayList<>();
+        for (Friendship friendship : friendshipMapper.selectByUserId(curId)) {
+            if (friendship.getFriendId() != null) {
+                friendIds.add(friendship.getFriendId());
+            }
+        }
+        if (friendIds.isEmpty()) {
+            result.setTotal(0);
+            result.setList(new ArrayList<>());
+            return result;
+        }
+
+        int total = userFeedPostService.countPublicByUserIds(friendIds);
+        List<FriendFeedVO> list = new ArrayList<>();
+        if (total > 0) {
+            // 同一页作者昵称/头像只查一次；Feign 失败时缓存 null，避免逐条重试
+            Map<Long, UserInfo> authorCache = new HashMap<>();
+            for (UserFeedPost row : userFeedPostService.selectPublicPageByUserIds(friendIds, (p - 1) * s, s)) {
+                list.add(toFriendFeedVo(row, authorCache));
+            }
+        }
+        result.setTotal(total);
+        result.setList(list);
+        return result;
+    }
+
+    /**
+     * 好友动态实体转列表项，作者资料优先取本页缓存。
+     *
+     * @param row         动态行
+     * @param authorCache 本页作者缓存，允许值为 null（表示查询失败）
+     * @return 好友动态卡片
+     */
+    private FriendFeedVO toFriendFeedVo(UserFeedPost row, Map<Long, UserInfo> authorCache) {
+        FriendFeedVO vo = new FriendFeedVO();
+        vo.setFeedId(row.getId());
+        vo.setUserId(row.getUserId());
+
+        Long authorId = row.getUserId();
+        UserInfo author;
+        if (authorCache.containsKey(authorId)) {
+            author = authorCache.get(authorId);
+        } else {
+            try {
+                author = loadUser(authorId);
+            } catch (BizException e) {
+                log.warn("好友动态作者资料查询失败, userId={}", authorId);
+                author = null;
+            }
+            authorCache.put(authorId, author);
+        }
+        vo.setNickname(author == null ? "用户" : author.getNickname());
+        vo.setAvatarUrl(author == null ? null : author.getAvatarUrl());
+
+        vo.setContent(row.getContent());
+        vo.setImages(splitImageUrls(row.getImageUrls()));
+        vo.setPrivacy(row.getPrivacy());
+        vo.setLikeCount(row.getLikeCount() == null ? 0 : row.getLikeCount());
+        vo.setCommentCount(0);
+        vo.setCreatedAt(row.getCreatedAt());
+        return vo;
+    }
+
+    /**
+     * 库内逗号字符串 → 接口数组，口径与「我的动态」一致。
+     *
+     * @param imageUrls 逗号分隔 URL，可为 null
+     * @return 图片列表；无图返回空列表
+     */
+    private List<String> splitImageUrls(String imageUrls) {
+        if (imageUrls == null || imageUrls.isBlank()) {
+            return List.of();
+        }
+        List<String> images = new ArrayList<>();
+        for (String part : imageUrls.split(",")) {
+            String url = part.trim();
+            if (!url.isEmpty()) {
+                images.add(url);
+            }
+        }
+        return images;
     }
 
     /**

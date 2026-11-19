@@ -112,6 +112,7 @@ export default defineConfig({
 
 `POST /social/sendFriendRequest`　`POST /social/handleFriendRequest`  
 `GET /social/friends`　`GET /social/friend-requests/inbox`　`POST /social/friends/{id}/delete`  
+`GET /social/feeds`（好友动态：只含好友公开动态，自己的走 `/user/feeds`；`page` 默认 1、`size` 默认 10，上限 50）  
 `POST /social/sessions`（`sessionType` 1 私聊 / 2 群聊）  
 `GET/POST /social/sessions/{id}/messages`  
 `POST /social/blacklist`　`DELETE /social/blacklist/{userId}`　`GET /social/blacklist`

@@ -85,6 +85,30 @@ public interface UserFeedPostMapper {
                                           @Param("size") int size);
 
     /**
+     * 统计一批用户中公开动态的条数，供好友动态分页 total。
+     *
+     * <p>只统计 {@code privacy=1}，调用方须保证 {@code userIds} 非空。
+     *
+     * @param userIds 用户 ID 列表
+     * @return 条数
+     */
+    int countPublicByUserIds(@Param("userIds") List<Long> userIds);
+
+    /**
+     * 分页查询一批用户的公开动态，按发布时间倒序、ID 倒序。
+     *
+     * <p>只查 {@code privacy=1}，调用方须保证 {@code userIds} 非空。
+     *
+     * @param userIds 用户 ID 列表
+     * @param offset  偏移
+     * @param size    条数
+     * @return 当前页；无数据返回空列表
+     */
+    List<UserFeedPost> selectPublicPageByUserIds(@Param("userIds") List<Long> userIds,
+                                                 @Param("offset") int offset,
+                                                 @Param("size") int size);
+
+    /**
      * 查询全部动态，按发布时间倒序。
      *
      * @return 动态列表；无数据返回空列表

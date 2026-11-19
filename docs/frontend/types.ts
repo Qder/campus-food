@@ -271,6 +271,12 @@ export interface ReviewReplyVO {
 
 /* ---------- 社交 ---------- */
 
+export interface FriendFeedVO extends FeedVO {
+  userId: number;
+  nickname: string;
+  avatarUrl: string | null;
+}
+
 export interface FriendRequestVo {
   id: number;
   fromUserId: number;
@@ -301,7 +307,8 @@ export interface CreateSessionDTO {
 
 export interface ChatSessionVO {
   sessionId: number;
-  sessionType: number;
+  /** 1 私聊 / 2 群聊 */
+  sessionType: 1 | 2;
   /** 群名称，私聊为 null */
   title: string | null;
   /** 私聊固定 2，群聊含自己 */
