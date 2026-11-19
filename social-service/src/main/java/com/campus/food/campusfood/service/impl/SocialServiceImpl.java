@@ -3,6 +3,7 @@ package com.campus.food.campusfood.service.impl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,8 @@ import com.campus.food.campusfood.common.SocialRedisKeys;
 import com.campus.food.campusfood.dto.BlockUserDTO;
 import com.campus.food.campusfood.dto.CreateSessionDTO;
 import com.campus.food.campusfood.dto.SendMessageDTO;
+import com.campus.food.campusfood.entity.ChatGroup;
+import com.campus.food.campusfood.entity.ChatGroupMember;
 import com.campus.food.campusfood.entity.ChatMessage;
 import com.campus.food.campusfood.entity.ChatMessageIndex;
 import com.campus.food.campusfood.entity.ChatSession;
@@ -29,6 +32,8 @@ import com.campus.food.campusfood.entity.Friendship;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.feign.UserFeignClient;
 import com.campus.food.campusfood.feign.UserInfo;
+import com.campus.food.campusfood.mapper.ChatGroupMapper;
+import com.campus.food.campusfood.mapper.ChatGroupMemberMapper;
 import com.campus.food.campusfood.mapper.ChatMessageIndexMapper;
 import com.campus.food.campusfood.mapper.ChatSessionMapper;
 import com.campus.food.campusfood.mapper.ChatSessionMemberMapper;
@@ -49,11 +54,11 @@ import com.campus.food.campusfood.vo.FriendVo;
 import feign.FeignException;
 
 /**
- * 社交业务门面实现：好友申请与处理、私聊会话与消息。
+ * 社交业务门面实现：好友申请与处理、私聊/群聊会话与消息。
  *
  * <p>
  * 申请阶段的判重与隐私校验、同意阶段的双向关系与 Redis 关注集合
- * 都在这一层完成。私聊同样走这一层：MySQL 管会话/成员/索引，Mongo 管正文，
+ * 都在这一层完成。会话同样走这一层：MySQL 管会话/成员/索引，Mongo 管正文，
  * 底层 Mapper / Repository 只负责单表读写。
  *
  * @author yang
@@ -74,8 +79,18 @@ public class SocialServiceImpl implements SocialService {
     /** 留言最大长度，与 {@code friend_request.message VARCHAR(255)} 对齐 */
     private static final int MESSAGE_MAX_LENGTH = 255;
 
-    /** 会话类型：1 私聊（本期只允许这个值） */
+    /** 会话类型：1 私聊 */
     private static final int SESSION_TYPE_PRIVATE = 1;
+    /** 会话类型：2 群聊 */
+    private static final int SESSION_TYPE_GROUP = 2;
+    /** 群人数上限，含群主，与 {@code chat_group.max_members} 默认值对齐 */
+    private static final int GROUP_MAX_MEMBERS = 200;
+    /** 群名称最大长度，与 {@code chat_group.name VARCHAR(128)} 对齐 */
+    private static final int GROUP_NAME_MAX_LENGTH = 128;
+    /** 群成员角色：0 普通成员 */
+    private static final int GROUP_ROLE_MEMBER = 0;
+    /** 群成员角色：2 群主 */
+    private static final int GROUP_ROLE_OWNER = 2;
     /** TEXT 正文最大字数，与契约 4.6.8 对齐 */
     private static final int TEXT_MAX_LENGTH = 1000;
     /** 会话列表预览截断长度，对齐 {@code chat_session.last_msg_preview VARCHAR(255)} */
@@ -90,6 +105,8 @@ public class SocialServiceImpl implements SocialService {
     private final FriendshipService friendshipService;
     private final ChatSessionMapper chatSessionMapper;
     private final ChatSessionMemberMapper chatSessionMemberMapper;
+    private final ChatGroupMapper chatGroupMapper;
+    private final ChatGroupMemberMapper chatGroupMemberMapper;
     private final ChatMessageIndexMapper chatMessageIndexMapper;
     private final UserBlacklistMapper userBlacklistMapper;
     private final ChatMessageRepository chatMessageRepository;
@@ -104,6 +121,8 @@ public class SocialServiceImpl implements SocialService {
      * @param friendshipService       好友关系服务，删除好友时复用其双向删除与 Redis 清理
      * @param chatSessionMapper       会话表
      * @param chatSessionMemberMapper 会话成员表
+     * @param chatGroupMapper         群聊表
+     * @param chatGroupMemberMapper   群成员表
      * @param chatMessageIndexMapper  消息索引表
      * @param userBlacklistMapper     拉黑只读查询
      * @param chatMessageRepository   Mongo 消息正文
@@ -115,6 +134,8 @@ public class SocialServiceImpl implements SocialService {
             FriendshipService friendshipService,
             ChatSessionMapper chatSessionMapper,
             ChatSessionMemberMapper chatSessionMemberMapper,
+            ChatGroupMapper chatGroupMapper,
+            ChatGroupMemberMapper chatGroupMemberMapper,
             ChatMessageIndexMapper chatMessageIndexMapper,
             UserBlacklistMapper userBlacklistMapper,
             ChatMessageRepository chatMessageRepository) {
@@ -125,6 +146,8 @@ public class SocialServiceImpl implements SocialService {
         this.friendshipService = friendshipService;
         this.chatSessionMapper = chatSessionMapper;
         this.chatSessionMemberMapper = chatSessionMemberMapper;
+        this.chatGroupMapper = chatGroupMapper;
+        this.chatGroupMemberMapper = chatGroupMemberMapper;
         this.chatMessageIndexMapper = chatMessageIndexMapper;
         this.userBlacklistMapper = userBlacklistMapper;
         this.chatMessageRepository = chatMessageRepository;
@@ -444,20 +467,38 @@ public class SocialServiceImpl implements SocialService {
      * {@inheritDoc}
      *
      * <p>
-     * 同一对好友只保留一场 {@code sessionType=1} 的私聊：两边都在
-     * {@code chat_session_member} 里即视为已有，不看 {@code peer_user_id} 方向。
-     * 没有则插入一行会话 + 两行成员（自己、对方），未读先写 0。
+     * 按 {@code sessionType} 分流：私聊同一对好友只保留一场会话，群聊每次调用
+     * 都新建，不做判重。其余取值一律视为不支持的会话类型。
      */
     @Override
     @Transactional
     public ChatSessionVO createOrGetSession(CreateSessionDTO dto) {
         Long curId = requireCurUserId();
-        if (dto == null || dto.getPeerUserId() == null) {
-            throw new BizException("对方用户不能为空");
+        Integer sessionType = dto == null ? null : dto.getSessionType();
+        if (Integer.valueOf(SESSION_TYPE_PRIVATE).equals(sessionType)) {
+            return createPrivateSession(curId, dto);
         }
-        // 群聊本期不做
-        if (dto.getSessionType() == null || dto.getSessionType() != SESSION_TYPE_PRIVATE) {
-            throw new BizException("本期仅支持私聊");
+        if (Integer.valueOf(SESSION_TYPE_GROUP).equals(sessionType)) {
+            return createGroupSession(curId, dto);
+        }
+        throw new BizException("不支持的会话类型");
+    }
+
+    /**
+     * 创建或返回已有私聊：两人须是好友且未互相拉黑。
+     *
+     * <p>
+     * 同一对好友只保留一场 {@code sessionType=1} 的私聊：两边都在
+     * {@code chat_session_member} 里即视为已有，不看 {@code peer_user_id} 方向。
+     * 没有则插入一行会话 + 两行成员（自己、对方），未读先写 0。
+     *
+     * @param curId 当前登录用户
+     * @param dto   含 {@code peerUserId}
+     * @return 会话摘要，成员数固定 2
+     */
+    private ChatSessionVO createPrivateSession(Long curId, CreateSessionDTO dto) {
+        if (dto.getPeerUserId() == null) {
+            throw new BizException("对方用户不能为空");
         }
         Long peerId = dto.getPeerUserId();
         if (curId.equals(peerId)) {
@@ -485,6 +526,81 @@ public class SocialServiceImpl implements SocialService {
         }
         // 昵称头像现查 Feign，不写进会话表
         return toSessionVo(existing.getId(), peerId);
+    }
+
+    /**
+     * 新建群聊：群、会话与两张成员表在同一事务内写入。
+     *
+     * <p>
+     * 每次调用都新建，不做判重。群主是当前用户，{@code memberIds} 是除自己以外的成员；
+     * 成员不要求是好友，但须逐个经 user-service 校验存在，任一不存在则整体回滚。
+     *
+     * @param curId 当前登录用户
+     * @param dto   含 {@code title} 与 {@code memberIds}
+     * @return 会话摘要，群聊的 peer 字段全为 null
+     */
+    private ChatSessionVO createGroupSession(Long curId, CreateSessionDTO dto) {
+        String title = dto.getTitle() == null ? "" : dto.getTitle().trim();
+        if (title.isEmpty()) {
+            throw new BizException("群名称不能为空");
+        }
+        if (title.length() > GROUP_NAME_MAX_LENGTH) {
+            throw new BizException("群名称不能超过128字");
+        }
+        List<Long> memberIds = normalizeGroupMemberIds(curId, dto.getMemberIds());
+        if (memberIds.isEmpty()) {
+            throw new BizException("群成员不能为空");
+        }
+        if (memberIds.size() + 1 > GROUP_MAX_MEMBERS) {
+            throw new BizException("群成员不能超过200人");
+        }
+        // 账号须存在，避免把脏 ID 写进成员表
+        for (Long memberId : memberIds) {
+            loadUser(memberId);
+        }
+
+        ChatGroup group = new ChatGroup();
+        group.setName(title);
+        group.setOwnerUserId(curId);
+        group.setMaxMembers(GROUP_MAX_MEMBERS);
+        group.setStatus(1);
+        chatGroupMapper.insert(group);
+
+        ChatSession session = new ChatSession();
+        session.setSessionType(SESSION_TYPE_GROUP);
+        session.setGroupId(group.getId());
+        chatSessionMapper.insert(session);
+
+        insertMember(session.getId(), curId);
+        for (Long memberId : memberIds) {
+            insertMember(session.getId(), memberId);
+        }
+        insertGroupMember(group.getId(), curId, GROUP_ROLE_OWNER);
+        for (Long memberId : memberIds) {
+            insertGroupMember(group.getId(), memberId, GROUP_ROLE_MEMBER);
+        }
+        return toGroupSessionVo(session.getId(), title, memberIds.size() + 1);
+    }
+
+    /**
+     * 归一化群成员入参：忽略 null 与创建者自己，去重并保持原顺序。
+     *
+     * @param curId        当前登录用户，作为群主不占用 {@code memberIds}
+     * @param rawMemberIds 原始成员列表，可为 null
+     * @return 去重后的成员；没有有效成员时返回空列表
+     */
+    private List<Long> normalizeGroupMemberIds(Long curId, List<Long> rawMemberIds) {
+        if (rawMemberIds == null || rawMemberIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<Long> unique = new LinkedHashSet<>();
+        for (Long memberId : rawMemberIds) {
+            if (memberId == null || curId.equals(memberId)) {
+                continue;
+            }
+            unique.add(memberId);
+        }
+        return new ArrayList<>(unique);
     }
 
     /**
@@ -534,19 +650,21 @@ public class SocialServiceImpl implements SocialService {
      * {@inheritDoc}
      *
      * <p>
-     * 每次发送前再查一次拉黑。写入顺序：Mongo 正文 → MySQL 索引 → 会话
+     * 私聊每次发送前再查一次拉黑，群聊跳过。写入顺序：Mongo 正文 → MySQL 索引 → 会话
      * {@code last_msg_preview}/{@code last_msg_at}。Mongo 不在本地事务里。
      */
     @Override
     @Transactional
     public ChatMessageVO sendMessage(Long sessionId, SendMessageDTO dto) {
         Long curId = requireCurUserId();
-        // 必须是该会话成员
-        requireSessionMember(sessionId, curId);
-        // 私聊另一人；查到才做拉黑拦截（成员异常时不误拦）
-        Long peerId = chatSessionMemberMapper.selectPeerUserId(sessionId, curId);
-        if (peerId != null) {
-            assertNotBlocked(curId, peerId, false);
+        // 必须是该会话成员；群聊成员多，拉黑只在私聊里按「另一个人」判断
+        ChatSession session = requireSessionMember(sessionId, curId);
+        if (Integer.valueOf(SESSION_TYPE_PRIVATE).equals(session.getSessionType())) {
+            // 私聊另一人；查到才做拉黑拦截（成员异常时不误拦）
+            Long peerId = chatSessionMemberMapper.selectPeerUserId(sessionId, curId);
+            if (peerId != null) {
+                assertNotBlocked(curId, peerId, false);
+            }
         }
         if (dto == null || dto.getMsgType() == null || dto.getMsgType().isBlank()) {
             throw new BizException("消息类型不能为空");
@@ -676,6 +794,21 @@ public class SocialServiceImpl implements SocialService {
     }
 
     /**
+     * 往群成员表插入一名成员。建群时群主、其余成员各调一次。
+     *
+     * @param groupId 刚插入的群 ID
+     * @param userId  成员用户 ID
+     * @param role    0 成员 / 2 群主
+     */
+    private void insertGroupMember(Long groupId, Long userId, int role) {
+        ChatGroupMember member = new ChatGroupMember();
+        member.setGroupId(groupId);
+        member.setUserId(userId);
+        member.setRole(role);
+        chatGroupMemberMapper.insert(member);
+    }
+
+    /**
      * 往会话插入一名成员。私聊建会话时自己、对方各调一次。
      *
      * @param sessionId 刚插入的会话 ID
@@ -691,20 +824,38 @@ public class SocialServiceImpl implements SocialService {
     }
 
     /**
-     * 组装创建会话成功体：对方资料现查 user-service。
+     * 组装私聊创建成功体：对方资料现查 user-service。
      *
      * @param sessionId 会话 ID
      * @param peerId    对方用户 ID
-     * @return 前端会话卡片字段
+     * @return 前端会话卡片字段，成员数固定 2
      */
     private ChatSessionVO toSessionVo(Long sessionId, Long peerId) {
         UserInfo peer = loadUser(peerId);
         ChatSessionVO vo = new ChatSessionVO();
         vo.setSessionId(sessionId);
         vo.setSessionType(SESSION_TYPE_PRIVATE);
+        vo.setMemberCount(2);
         vo.setPeerUserId(peerId);
         vo.setPeerNickname(peer.getNickname());
         vo.setPeerAvatarUrl(peer.getAvatarUrl());
+        return vo;
+    }
+
+    /**
+     * 组装群聊创建成功体：peer 字段保持 null，不额外查成员资料。
+     *
+     * @param sessionId   会话 ID
+     * @param title       群名称
+     * @param memberCount 成员数，含创建者
+     * @return 前端会话卡片字段
+     */
+    private ChatSessionVO toGroupSessionVo(Long sessionId, String title, int memberCount) {
+        ChatSessionVO vo = new ChatSessionVO();
+        vo.setSessionId(sessionId);
+        vo.setSessionType(SESSION_TYPE_GROUP);
+        vo.setTitle(title);
+        vo.setMemberCount(memberCount);
         return vo;
     }
 
@@ -713,8 +864,9 @@ public class SocialServiceImpl implements SocialService {
      *
      * @param sessionId 路径上的会话 ID
      * @param userId    当前登录用户
+     * @return 已校验的会话，供调用方按 {@code sessionType} 分支
      */
-    private void requireSessionMember(Long sessionId, Long userId) {
+    private ChatSession requireSessionMember(Long sessionId, Long userId) {
         if (sessionId == null) {
             throw new BizException("会话不存在");
         }
@@ -725,6 +877,7 @@ public class SocialServiceImpl implements SocialService {
         if (chatSessionMemberMapper.countMember(sessionId, userId) <= 0) {
             throw new BizException("无权访问该会话");
         }
+        return session;
     }
 
     /**

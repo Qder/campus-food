@@ -18,7 +18,7 @@ public class ChatSession {
 
     private Long id;
 
-    /** 1 私聊 / 2 群聊；本期接口只建 1 */
+    /** 1 私聊 / 2 群聊 */
     private Integer sessionType;
 
     /** 私聊时创建人眼里的对方用户 ID，冗余字段；查已有会话以成员表为准 */

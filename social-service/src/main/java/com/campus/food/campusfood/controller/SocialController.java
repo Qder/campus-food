@@ -28,7 +28,7 @@ import com.campus.food.campusfood.vo.FriendVo;
 import jakarta.validation.Valid;
 
 /**
- * 社交接口：好友、黑名单、私聊。均需 JWT，身份取自当前登录用户。
+ * 社交接口：好友、黑名单、私聊与群聊。均需 JWT，身份取自当前登录用户。
  *
  * @author yang
  * @since 2026-10-23
@@ -99,7 +99,7 @@ public class SocialController {
     }
 
     /**
-     * 创建或返回已有私聊会话。
+     * 创建会话：私聊已存在则返回，群聊每次新建。
      */
     @PostMapping("/sessions")
     public ChatSessionVO createOrGetSession(@RequestBody CreateSessionDTO dto) {

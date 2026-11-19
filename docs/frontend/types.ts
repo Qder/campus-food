@@ -289,15 +289,28 @@ export interface FriendVo {
 }
 
 export interface CreateSessionDTO {
-  peerUserId: number;
+  /** 私聊对方用户 ID */
+  peerUserId?: number;
+  /** 1 私聊 / 2 群聊 */
   sessionType: 1 | 2;
+  /** 群名称，仅群聊；最长 128 字 */
+  title?: string;
+  /** 群成员，不含自己；仅群聊，至少 1 人 */
+  memberIds?: number[];
 }
 
 export interface ChatSessionVO {
   sessionId: number;
   sessionType: number;
-  peerUserId: number;
-  peerNickname: string;
+  /** 群名称，私聊为 null */
+  title: string | null;
+  /** 私聊固定 2，群聊含自己 */
+  memberCount: number;
+  /** 群聊为 null */
+  peerUserId: number | null;
+  /** 群聊为 null */
+  peerNickname: string | null;
+  /** 群聊为 null */
   peerAvatarUrl: string | null;
 }
 

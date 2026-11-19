@@ -80,10 +80,11 @@ public interface SocialService {
     List<FriendRequestVo> getFriendRequests();
 
     /**
-     * 创建或返回已有私聊会话。
+     * 创建或返回会话：私聊同一对用户只保留一场，群聊每次新建。
      *
-     * @param dto peerUserId、sessionType（本期仅 1）
-     * @return 会话摘要
+     * @param dto 私聊传 {@code peerUserId}；群聊传 {@code title} 与 {@code memberIds}；
+     *            {@code sessionType} 1 私聊 / 2 群聊
+     * @return 会话摘要；群聊的 peer 字段为 null
      */
     ChatSessionVO createOrGetSession(CreateSessionDTO dto);
 

@@ -78,7 +78,7 @@ export default defineConfig({
 
 ## 按模块：先做已实现的
 
-下面只列**现网已通**的路径。标了还没做的（轮播、群聊、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
+下面只列**现网已通**的路径。标了还没做的（轮播、营销、管理报表等）先不要调，会 404。细节仍看完整接口文档对应章节。
 
 ### 登录（文档第 1 章）
 
@@ -106,15 +106,37 @@ export default defineConfig({
 
 推荐不强制口味；未登录是 401，不会降级成热门。
 
-### 好友 / 私聊（第 4 章）
+### 好友 / 会话（第 4 章）
 
 路径按现网名字，不要改成 REST 新路径：
 
 `POST /social/sendFriendRequest`　`POST /social/handleFriendRequest`  
 `GET /social/friends`　`GET /social/friend-requests/inbox`　`POST /social/friends/{id}/delete`  
-`POST /social/sessions`（现在只能 `sessionType: 1` 私聊）  
+`POST /social/sessions`（`sessionType` 1 私聊 / 2 群聊）  
 `GET/POST /social/sessions/{id}/messages`  
 `POST /social/blacklist`　`DELETE /social/blacklist/{userId}`　`GET /social/blacklist`
+
+群聊仍用 `POST /social/sessions`，`memberIds` 是除自己以外的成员：
+
+```json
+{ "sessionType": 2, "title": "黄焖鸡拼车群", "memberIds": [2, 3, 4] }
+```
+
+返回比私聊多 `title`、`memberCount`，`peerUserId` / `peerNickname` / `peerAvatarUrl` 都是 `null`：
+
+```json
+{
+  "sessionId": 12,
+  "sessionType": 2,
+  "title": "黄焖鸡拼车群",
+  "memberCount": 4,
+  "peerUserId": null,
+  "peerNickname": null,
+  "peerAvatarUrl": null
+}
+```
+
+私聊返回也带 `memberCount: 2`、`title: null`。群成员不要求是好友；发消息、拉历史仍走 4.7 / 4.8，非成员会 400「无权访问该会话」。群主转让、解散、邀请成员这期都没有。
 
 ### 拼单约饭（第 5 章）
 

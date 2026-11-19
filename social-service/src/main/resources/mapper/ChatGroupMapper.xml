@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.food.campusfood.mapper.ChatGroupMapper">
+
+    <insert id="insert" parameterType="com.campus.food.campusfood.entity.ChatGroup"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_group (name, owner_user_id, avatar_url, notice, max_members, status)
+        VALUES (#{name}, #{ownerUserId}, #{avatarUrl}, #{notice}, #{maxMembers}, #{status})
+    </insert>
+
+</mapper>

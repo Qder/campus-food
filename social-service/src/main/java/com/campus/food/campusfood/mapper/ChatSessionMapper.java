@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import com.campus.food.campusfood.entity.ChatSession;
 
 /**
- * {@code chat_session} Mapper。私聊会话一行；成员在 {@code chat_session_member}。
+ * {@code chat_session} Mapper。私聊、群聊各一行；成员在 {@code chat_session_member}。
  *
  * @author yang
  * @since 2026-10-31

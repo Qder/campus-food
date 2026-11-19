@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import com.campus.food.campusfood.entity.ChatSessionMember;
 
 /**
- * {@code chat_session_member} Mapper。私聊插入两行（自己、对方）。
+ * {@code chat_session_member} Mapper。私聊插入两行（自己、对方），群聊按成员逐个插入。
  *
  * @author yang
  * @since 2026-10-31

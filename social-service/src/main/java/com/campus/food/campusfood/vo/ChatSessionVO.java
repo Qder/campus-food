@@ -15,6 +15,12 @@ public class ChatSessionVO {
 
     private Integer sessionType;
 
+    /** 群名称；私聊为 null */
+    private String title;
+
+    /** 成员数：私聊固定 2，群聊为 1 + memberIds 去重后人数 */
+    private Integer memberCount;
+
     private Long peerUserId;
 
     private String peerNickname;
