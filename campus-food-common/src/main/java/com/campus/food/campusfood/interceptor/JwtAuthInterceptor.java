@@ -143,7 +143,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         }
     }
 
-    /** 公开美食浏览：分类/列表/搜索、详情、评价列表（均为 GET） */
+    /** 公开美食浏览：分类/列表/搜索、营销活动、详情、评价列表（均为 GET） */
     private boolean isPublicFoodBrowse(HttpServletRequest request) {
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return false;
@@ -155,6 +155,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         return uri.matches(".*/food/categories/?$")
                 || uri.matches(".*/food/list/?$")
                 || uri.matches(".*/food/search/?$")
+                || uri.matches(".*/food/campaigns/?$")
                 || uri.matches(".*/food/\\d+/?$")
                 || uri.matches(".*/food/\\d+/reviews/?$")
                 || uri.matches(".*/food/reviews/\\d+/replies/?$");

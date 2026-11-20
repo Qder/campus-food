@@ -4,6 +4,7 @@ import com.campus.food.campusfood.common.UserContext;
 import com.campus.food.campusfood.dto.CreateReplyDTO;
 import com.campus.food.campusfood.dto.CreateReviewDTO;
 import com.campus.food.campusfood.exception.BizException;
+import com.campus.food.campusfood.service.FoodCampaignService;
 import com.campus.food.campusfood.service.FoodReviewService;
 import com.campus.food.campusfood.service.FoodService;
 import com.campus.food.campusfood.vo.*;
@@ -34,6 +35,9 @@ public class FoodController {
 
     @Autowired
     private FoodReviewService foodReviewService;
+
+    @Autowired
+    private FoodCampaignService foodCampaignService;
 
     /**
      * 查看美食分类，无需登录。
@@ -76,6 +80,17 @@ public class FoodController {
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size) {
         return foodService.listFoods(null, null, keyword, page, size);
+    }
+
+    /**
+     * 查看进行中的店铺营销活动，无需登录。只返回处于起止时间窗内的活动。
+     *
+     * @param merchantId 店铺 ID，可选，不传表示全部店铺
+     * @return 活动列表，带店铺名；无数据返回空数组
+     */
+    @GetMapping("/campaigns")
+    public List<CampaignVO> campaigns(@RequestParam(required = false) Long merchantId) {
+        return foodCampaignService.listActive(merchantId);
     }
 
     /**
