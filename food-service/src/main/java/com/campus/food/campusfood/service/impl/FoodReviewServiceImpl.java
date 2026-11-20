@@ -228,6 +228,7 @@ public class FoodReviewServiceImpl implements FoodReviewService {
         vo.setUserId(userId);
         vo.setNickname(user != null ? user.getNickname() : null);
         vo.setContent(reply.getContent());
+        vo.setFromMerchant(reply.getFromMerchant());
         vo.setCreatedAt(reply.getCreatedAt());
         return vo;
     }

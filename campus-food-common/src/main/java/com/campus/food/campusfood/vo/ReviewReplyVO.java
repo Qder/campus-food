@@ -28,6 +28,9 @@ public class ReviewReplyVO {
     /** 回复内容 */
     private String content;
 
+    /** 是否商家回复：0 否，1 是 */
+    private Integer fromMerchant;
+
     /** 回复时间 */
     private LocalDateTime createdAt;
 }

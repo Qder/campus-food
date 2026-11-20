@@ -1,20 +1,28 @@
 package com.campus.food.campusfood.service.impl;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.campus.food.campusfood.common.UserContext;
+import com.campus.food.campusfood.dto.CreateReplyDTO;
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.entity.FoodItem;
 import com.campus.food.campusfood.entity.Merchant;
+import com.campus.food.campusfood.entity.ReviewImage;
+import com.campus.food.campusfood.entity.ReviewReply;
 import com.campus.food.campusfood.enums.FoodItemStatus;
 import com.campus.food.campusfood.enums.MerchantAuditStatus;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.mapper.FoodItemMapper;
 import com.campus.food.campusfood.mapper.FoodReviewMapper;
 import com.campus.food.campusfood.mapper.MerchantMapper;
+import com.campus.food.campusfood.mapper.ReviewImageMapper;
+import com.campus.food.campusfood.mapper.ReviewReplyMapper;
 import com.campus.food.campusfood.service.MerchantFoodService;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodReviewVO;
@@ -35,6 +43,12 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
     private static final int DEFAULT_SIZE = 10;
     /** 每页条数上限 */
     private static final int MAX_SIZE = 50;
+    /** 回复内容长度上限，与 review_reply.content 列一致 */
+    private static final int REPLY_MAX_LENGTH = 1000;
+    /** 回复来源：商家 */
+    private static final int FROM_MERCHANT = 1;
+    /** 课设：写入后直接展示，跳过待审 */
+    private static final int AUDIT_PASS = 1;
 
     @Autowired
     private FoodItemMapper foodItemMapper;
@@ -44,6 +58,12 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
 
     @Autowired
     private FoodReviewMapper foodReviewMapper;
+
+    @Autowired
+    private ReviewReplyMapper reviewReplyMapper;
+
+    @Autowired
+    private ReviewImageMapper reviewImageMapper;
 
     /**
      * @param foodItemMapper 菜品 Mapper
@@ -252,6 +272,61 @@ public class MerchantFoodServiceImpl implements MerchantFoodService {
         vo.setSize(s);
         vo.setList(list);
         return vo;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>先按 {@link #requireApprovedShop()} 与 {@link #requireOwnedFood(Long)} 校验店主身份，
+     * 再用 {@code selectVisibleById} 校验评价可见且属于该菜品。同一评价已有商家回复时覆盖原行，
+     * 不新增第二条；图片按评价 ID 回表，避免响应里缺图。
+     */
+    @Override
+    @Transactional
+    public FoodReviewVO replyToReview(Long foodId, Long reviewId, CreateReplyDTO dto) {
+        Long curUserId = requireMerchantUserId();
+        requireApprovedShop();
+        requireOwnedFood(foodId);
+
+        if (reviewId == null) {
+            throw new BizException("评价不存在");
+        }
+        FoodReviewVO review = foodReviewMapper.selectVisibleById(reviewId);
+        if (review == null || !foodId.equals(review.getFoodId())) {
+            throw new BizException("评价不存在");
+        }
+
+        String content = dto == null || dto.getContent() == null ? null : dto.getContent().trim();
+        if (content == null || content.isEmpty()) {
+            throw new BizException("回复内容不能为空");
+        }
+        if (content.length() > REPLY_MAX_LENGTH) {
+            throw new BizException("回复内容过长");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        ReviewReply existing = reviewReplyMapper.selectMerchantReplyByReviewId(reviewId);
+        if (existing != null) {
+            reviewReplyMapper.updateContentById(existing.getId(), content, now);
+        } else {
+            ReviewReply reply = new ReviewReply();
+            reply.setReviewId(reviewId);
+            reply.setUserId(curUserId);
+            reply.setContent(content);
+            reply.setFromMerchant(FROM_MERCHANT);
+            reply.setAuditStatus(AUDIT_PASS);
+            reply.setCreatedAt(now);
+            reviewReplyMapper.insert(reply);
+        }
+
+        review.setMerchantReply(content);
+        review.setMerchantReplyAt(now);
+        List<String> images = new ArrayList<>();
+        for (ReviewImage image : reviewImageMapper.selectByReviewIds(List.of(reviewId))) {
+            images.add(image.getUrl());
+        }
+        review.setImages(images);
+        return review;
     }
 
     /** {@inheritDoc} */

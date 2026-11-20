@@ -41,4 +41,10 @@ public class FoodReviewVO {
 
     /** 创建时间 */
     private LocalDateTime createdAt;
+
+    /** 商家回复内容；未回复为 null，3.7 / 3.8 / 6.13 不填 */
+    private String merchantReply;
+
+    /** 商家回复时间；未回复为 null，3.7 / 3.8 / 6.13 不填 */
+    private LocalDateTime merchantReplyAt;
 }

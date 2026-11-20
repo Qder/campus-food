@@ -102,7 +102,7 @@ export default defineConfig({
 
 不用登录：`GET /food/categories` `/food/list` `/food/search` `/food/{id}` `/food/{id}/reviews`  
 要登录：`GET /food/recommend`　`POST /food/{id}/reviews`（可带 `images` 数组）  
-评价互动：`POST /food/reviews/{id}/like`（切换）　`POST/GET /food/reviews/{id}/replies`
+评价互动：`POST /food/reviews/{id}/like`（切换）　`POST/GET /food/reviews/{id}/replies`（回复列表每项带 `fromMerchant`：0 用户 / 1 商家）
 
 推荐不强制口味；未登录是 401，不会降级成热门。
 
@@ -152,7 +152,8 @@ export default defineConfig({
 
 用户端：`GET /merchant/list`　`GET /merchant/get/{id}`（可不登录）  
 店主：`POST /merchant/insert`　`PUT /merchant/update`　`PUT /merchant/delete/{id}`　`GET /merchant/mine`  
-菜品：`POST /merchant/foods/save`　`PUT .../update/{id}`　`PUT .../delete|onshelf|offshelf/{id}`　`GET /merchant/foods/mine` 等
+菜品：`POST /merchant/foods/save`　`PUT .../update/{id}`　`PUT .../delete|onshelf|offshelf/{id}`　`GET /merchant/foods/mine` 等  
+评价：`POST /merchant/foods/{foodId}/reviews/{reviewId}/reply`（body `content`；同一评价重复回复会覆盖原内容）
 
 建店/改店成功体是**数字**，不是店铺对象。新增菜品成功体是新菜 **id 数字**。
 

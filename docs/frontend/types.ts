@@ -252,6 +252,10 @@ export interface FoodReviewVO {
   /** 无图时为空数组 */
   images: string[];
   createdAt: string;
+  /** 商家回复内容；3.7 / 3.8 / 6.13 为 null */
+  merchantReply?: string | null;
+  /** 商家回复时间；3.7 / 3.8 / 6.13 为 null */
+  merchantReplyAt?: string | null;
 }
 
 export interface ReviewLikeVO {
@@ -266,6 +270,8 @@ export interface ReviewReplyVO {
   userId: number;
   nickname: string | null;
   content: string;
+  /** 0 用户 / 1 商家 */
+  fromMerchant: number;
   createdAt: string;
 }
 

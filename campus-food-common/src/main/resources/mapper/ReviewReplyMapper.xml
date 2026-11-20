@@ -20,6 +20,7 @@
             r.user_id AS userId,
             u.nickname,
             r.content,
+            r.from_merchant AS fromMerchant,
             r.created_at AS createdAt
         FROM review_reply r
                  LEFT JOIN sys_user u ON u.id = r.user_id AND u.deleted = 0
@@ -27,5 +28,29 @@
           AND r.audit_status = 1
         ORDER BY r.created_at ASC, r.id ASC
     </select>
+
+    <select id="selectMerchantReplyByReviewId" resultType="com.campus.food.campusfood.entity.ReviewReply">
+        SELECT
+            id,
+            review_id AS reviewId,
+            user_id AS userId,
+            reply_to_uid AS replyToUid,
+            content,
+            from_merchant AS fromMerchant,
+            audit_status AS auditStatus,
+            created_at AS createdAt
+        FROM review_reply
+        WHERE review_id = #{reviewId}
+          AND from_merchant = 1
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateContentById">
+        UPDATE review_reply
+        SET content    = #{content},
+            created_at = #{createdAt}
+        WHERE id = #{id}
+    </update>
 
 </mapper>

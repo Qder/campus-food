@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.campus.food.campusfood.dto.CreateReplyDTO;
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.exception.BizException;
 import com.campus.food.campusfood.service.MerchantFoodService;
@@ -123,6 +124,22 @@ public class MerchantFoodController {
                                         @RequestParam(required = false) Integer page,
                                         @RequestParam(required = false) Integer size) {
         return merchantFoodService.listReviews(foodId, page, size);
+    }
+
+    /**
+     * 商家回复本店菜品下的一条可见评价；同一评价重复回复会覆盖原内容。
+     *
+     * @param foodId   美食 ID，不能为空，须属于当前店主的已审核通过店铺
+     * @param reviewId 评价 ID，不能为空，须存在、可见且属于该菜品
+     * @param dto      回复内容，去空白后 1–1000 字
+     * @return 带商家回复字段与图片的评价
+     * @throws BizException 未登录、越权、评价不存在或内容不合法时
+     */
+    @PostMapping("/{foodId}/reviews/{reviewId}/reply")
+    public FoodReviewVO replyToReview(@PathVariable Long foodId,
+                                      @PathVariable Long reviewId,
+                                      @Valid @RequestBody CreateReplyDTO dto) {
+        return merchantFoodService.replyToReview(foodId, reviewId, dto);
     }
 
 

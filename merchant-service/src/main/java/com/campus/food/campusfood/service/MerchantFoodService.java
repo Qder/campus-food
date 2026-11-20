@@ -1,5 +1,6 @@
 package com.campus.food.campusfood.service;
 
+import com.campus.food.campusfood.dto.CreateReplyDTO;
 import com.campus.food.campusfood.dto.MerchantFoodSaveDTO;
 import com.campus.food.campusfood.vo.FoodItemVO;
 import com.campus.food.campusfood.vo.FoodReviewVO;
@@ -79,6 +80,20 @@ public interface MerchantFoodService {
      * @throws com.campus.food.campusfood.exception.BizException 未登录、美食不存在或无权查看时
      */
     PageVO<FoodReviewVO> listReviews(Long foodId, Integer page, Integer size);
+
+    /**
+     * 商家回复本店菜品下的可见评价。
+     *
+     * <p>同一评价只保留一条商家回复：已有则覆盖内容并刷新回复时间，没有则新增。
+     * 返回带 {@code merchantReply} / {@code merchantReplyAt} / {@code images} 的评价。
+     *
+     * @param foodId   美食 ID，不能为空，须属于当前店主的已审核通过店铺
+     * @param reviewId 评价 ID，不能为空，须存在、可见且属于该菜品
+     * @param dto      回复内容，去空白后 1–1000 字
+     * @return 带商家回复字段的评价
+     * @throws com.campus.food.campusfood.exception.BizException 未登录、越权、评价不存在或内容不合法时
+     */
+    FoodReviewVO replyToReview(Long foodId, Long reviewId, CreateReplyDTO dto);
 
     //查看单条美食详情
     FoodItemVO getFoodDetail(Long id);
